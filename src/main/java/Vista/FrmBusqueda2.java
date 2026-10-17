@@ -54,6 +54,7 @@ public void setIdEmpresaActiva(int idEmpresa) {
 
     // Aplica estilo a la tabla
     Estilos.estiloTablas(TableProductoJF);
+    mostrarEstadoInicial();   // 👈 al abrir, antes de escribir nada
 
     // Agregar KeyEventPostProcessor para detectar ESCAPE solo una vez
     KeyboardFocusManager kb = KeyboardFocusManager.getCurrentKeyboardFocusManager();
@@ -368,10 +369,11 @@ public void setIdEmpresaActiva(int idEmpresa) {
             timer.setRepeats(false);
             timer.start();
         } else {
-            DefaultTableModel modeloVacio = new DefaultTableModel();
-            modeloVacio.setColumnIdentifiers(new Object[]{"id", "codigo", "nombre", "stock", "precio"});
-            TableProductoJF.setModel(modeloVacio);
-        }
+    DefaultTableModel modeloVacio = new DefaultTableModel();
+    modeloVacio.setColumnIdentifiers(new Object[]{"id", "codigo", "nombre", "stock", "precio"});
+    TableProductoJF.setModel(modeloVacio);
+    mostrarEstadoInicial();   // 👈 al borrar todo el texto
+}
 
         // Al presionar flecha abajo, pasar foco y seleccionar primera fila
         if (evt.getKeyCode() == KeyEvent.VK_DOWN && TableProductoJF.getRowCount() > 0) {
@@ -386,7 +388,7 @@ public void setIdEmpresaActiva(int idEmpresa) {
     }                                  
 
     private void TableProductoJFKeyTyped(java.awt.event.KeyEvent evt) {                                         
-
+        
  //if(evt.getKeyCode() == evt.VK_ENTER){
    //      evt.consume();
      //}
@@ -400,7 +402,24 @@ int fila = TableProductoJF.getSelectedRow();
   
       
     }                                        
+    private final EmptyBusquedaInicial emptyInicial = new EmptyBusquedaInicial();
+    private final EmptyBusquedaSinResultados emptySinResultados = new EmptyBusquedaSinResultados();
+    private void mostrarEstadoInicial() {
+    jScrollPane8.setColumnHeaderView(null);          // oculta el encabezado azul de la tabla
+    jScrollPane8.setViewportView(emptyInicial);
+    }
 
+    private void mostrarSinResultados(String termino) {
+    emptySinResultados.setTermino(termino);
+    jScrollPane8.setColumnHeaderView(null);
+    jScrollPane8.setViewportView(emptySinResultados);
+    }
+
+    private void mostrarTabla() {
+    jScrollPane8.setViewportView(TableProductoJF);
+    jScrollPane8.setColumnHeaderView(TableProductoJF.getTableHeader());
+    }
+    
     private void TableProductoJFPropertyChange(java.beans.PropertyChangeEvent evt) {                                               
       // TODO add your handling code here:
     }                                              
@@ -533,6 +552,11 @@ public void listar() {
         TableProductoJF.setRowHeight(30);
         Estilos.estiloTablas(TableProductoJF);
 
+        if (modelo.getRowCount() == 0) {
+        mostrarSinResultados(txtBuscar.getText().trim());   // grillo
+        } else {
+        mostrarTabla();                                     // resultados
+        }
     } catch (Exception e) {
         JOptionPane.showMessageDialog(null, "Error al cargar los productos: " + e.getMessage());
     } finally {

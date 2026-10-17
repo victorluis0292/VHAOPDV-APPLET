@@ -247,7 +247,7 @@ public class VerduleriaPanel extends JPanel {
     public void mostrarDetalle(Productos p) {
     this.productoActual = p;
     this.mostrandoDetalle = true;
-    lblSubtituloHeader.setText(p.getNombre());
+    lblSubtituloHeader.setText(String.format("%s  ·  $%.2f/kg", p.getNombre(), p.getPrecioKg()));
     lblImagenDetalle.setIcon(cargarImagen(p, 130));
     lblPrecioKgDetalle.setText(String.format("Precio por kilo: $%.2f", p.getPrecioKg()));
     txtCantidad.setText("1.000");
@@ -338,65 +338,19 @@ private void detenerParpadeoDetalle() {
      * casualmente existía un archivo local con ese nombre. Eso quedó
      * eliminado a propósito.
      */
-    private ImageIcon cargarImagen(Productos p, int tamano) {
-        try {
-            Image img = null;
+  private ImageIcon cargarImagen(Productos p, int tamano) {
+    // Solo si tiene imagen_url se usa la imagen real (desde caché o internet, una sola vez)
+    ImageIcon icono = Utilidades.CacheImagenes.icono(p.getImagenUrl(), tamano);
+    if (icono != null) return icono;
 
-            // 1. Obtener la URL de imagen (soportando getImagenUrl o getImagen)
-            String urlString = null;
-            try {
-                java.lang.reflect.Method m = p.getClass().getMethod("getImagenUrl");
-                urlString = (String) m.invoke(p);
-            } catch (Exception ex1) {
-                try {
-                    java.lang.reflect.Method m = p.getClass().getMethod("getImagen");
-                    urlString = (String) m.invoke(p);
-                } catch (Exception ex2) {
-                    // Ignorar si no existe
-                }
-            }
-
-            System.out.println("DEBUG-IMG [" + p.getNombre() + "]: URL detectada -> " + urlString);
-
-            // 2. Solo si el producto tiene imagen_url (está en catalogo_global),
-            //    se intenta descargar la imagen real
-            if (urlString != null && !urlString.trim().isEmpty()) {
-                try {
-                    URL urlNet = new URL(urlString.trim());
-                    img = javax.imageio.ImageIO.read(urlNet);
-                    if (img != null) {
-                        System.out.println("DEBUG-IMG [" + p.getNombre() + "]: ¡Imagen descargada con éxito desde internet!");
-                    } else {
-                        System.out.println("DEBUG-IMG [" + p.getNombre() + "]: ImageIO.read devolvió null.");
-                    }
-                } catch (Exception e) {
-                    System.out.println("DEBUG-IMG [" + p.getNombre() + "]: Error al descargar de la web: " + e.getMessage());
-                }
-            } else {
-                System.out.println("DEBUG-IMG [" + p.getNombre() + "]: Sin imagen_url (no está dado de alta en catalogo_global). Se usará default.png");
-            }
-
-            // 3. Si no hay imagen_url o falló la descarga, se usa SIEMPRE default.png
-            //    (ya no se busca imagen local por nombre de producto)
-            if (img == null) {
-                URL urlDefault = getClass().getResource("/Img/Verduleria/default.png");
-                if (urlDefault != null) {
-                    img = new ImageIcon(urlDefault).getImage();
-                }
-            }
-
-            // 4. Redimensionar si se obtuvo alguna imagen
-            if (img != null) {
-                Image imgEscalada = img.getScaledInstance(tamano, tamano, Image.SCALE_SMOOTH);
-                return new ImageIcon(imgEscalada);
-            }
-
-        } catch (Exception e) {
-            System.out.println("DEBUG-IMG Error general para: " + p.getNombre() + " -> " + e.getMessage());
-        }
-        return new ImageIcon();
+    // Sin imagen_url o sin poder descargarla → default.png
+    URL urlDefault = getClass().getResource("/Img/Verduleria/default.png");
+    if (urlDefault != null) {
+        Image img = new ImageIcon(urlDefault).getImage();
+        return new ImageIcon(img.getScaledInstance(tamano, tamano, Image.SCALE_SMOOTH));
     }
-
+    return new ImageIcon();
+}
     // ---------------------------------------------------------
     // BÁSCULA (puerto serial)
     // ---------------------------------------------------------

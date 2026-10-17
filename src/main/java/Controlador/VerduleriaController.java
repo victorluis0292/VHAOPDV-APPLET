@@ -4,12 +4,16 @@ import Modelo.Productos;
 import Vista.VerduleriaPanel;
 import javax.swing.JOptionPane;
 import javax.swing.JTable;
+import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 
 public class VerduleriaController {
     private final VerduleriaPanel panel;
     private final JTable tableVenta;
     private final Runnable listenerBascula = this::aplicarConfigBascula;
+
+    // 👇 NUEVO: lo asigna quien crea el controller (Sistema.java), donde sí existe txtCodigoVenta
+    private Runnable onProductoAgregado;
 
     public VerduleriaController(VerduleriaPanel panel, JTable tableVenta) {
         this.panel = panel;
@@ -21,6 +25,11 @@ public class VerduleriaController {
         // 👇 Si cambian la config de báscula en cualquier momento (Configuraciones),
         // reaccionamos al instante sin necesidad de reiniciar la app.
         Modelo.ConfiguracionDispositivos.agregarListenerBascula(listenerBascula);
+    }
+
+    // 👇 NUEVO
+    public void setOnProductoAgregado(Runnable r) {
+        this.onProductoAgregado = r;
     }
 
     private void aplicarConfigBascula() {
@@ -55,7 +64,7 @@ public class VerduleriaController {
                 double nuevoTotal = producto.getPrecioKg() * nuevaCantidad;
                 modelo.setValueAt(nuevaCantidad, i, 2);
                 modelo.setValueAt(nuevoTotal, i, 4);
-                panel.mostrarGrid();
+                finalizarAgregado();   // 👈 antes: panel.mostrarGrid();
                 return;
             }
         }
@@ -66,7 +75,15 @@ public class VerduleriaController {
             producto.getPrecioKg(),
             total
         });
+        finalizarAgregado();           // 👈 antes: panel.mostrarGrid();
+    }
+
+    // 👇 NUEVO: vuelve a la cuadrícula y después pide el foco para el campo Código
+    private void finalizarAgregado() {
         panel.mostrarGrid();
+        if (onProductoAgregado != null) {
+            SwingUtilities.invokeLater(onProductoAgregado);
+        }
     }
 
     /** Llama esto al cerrar la pantalla de Nueva Venta, para liberar el puerto serial y el listener. */

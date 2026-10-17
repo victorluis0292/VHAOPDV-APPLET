@@ -6,6 +6,9 @@ import javax.swing.*;
 
 public class ConfigApp {
 
+    // 🔹 Versión de la app: súbela a mano en cada release
+    public static final String VERSION_ACTUAL = "1.5.1";
+
     // Carpeta de configuración en APPDATA
     private static final File CONFIG_DIR = new File(System.getenv("APPDATA"), "VHAOPDVOnline");
     private static final File CONFIG_FILE = new File(CONFIG_DIR, "config.properties");
@@ -13,7 +16,6 @@ public class ConfigApp {
     // Variables en memoria
     private static int idEmpresa = 0;
     private static String correo = "";
-    private static String versionApp = "";
 
     // 🔹 Guarda los datos de login (empresa y correo)
     public static void guardarDatos(int idEmp, String correoUser) {
@@ -59,7 +61,7 @@ public class ConfigApp {
             try (FileInputStream in = new FileInputStream(CONFIG_FILE)) {
                 props.load(in);
                 idEmpresa = Integer.parseInt(props.getProperty("idEmpresa", "0"));
-            } catch (IOException e) {
+            } catch (IOException | NumberFormatException e) {
                 e.printStackTrace();
             }
         }
@@ -80,100 +82,49 @@ public class ConfigApp {
         }
     }
 
-    // 🔹 Guardar versión de la app
-    public static void guardarVersion(String version) {
-        versionApp = version;
-
-        if (!CONFIG_DIR.exists()) CONFIG_DIR.mkdirs();
-
-        Properties props = new Properties();
-        // Cargar propiedades existentes
-        if (CONFIG_FILE.exists()) {
-            try (FileInputStream in = new FileInputStream(CONFIG_FILE)) {
-                props.load(in);
-            } catch (IOException ignored) {}
-        }
-
-        props.setProperty("versionApp", versionApp);
-
-        try (FileOutputStream out = new FileOutputStream(CONFIG_FILE)) {
-            props.store(out, "Datos de configuración de la app");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    // 🔹 Obtener versión de la app
+    // 🔹 Versión de la app (constante dentro del programa)
     public static String getVersion() {
-        if (!versionApp.isEmpty()) return versionApp;
-
-        if (CONFIG_FILE.exists()) {
-            Properties props = new Properties();
-            try (FileInputStream in = new FileInputStream(CONFIG_FILE)) {
-                props.load(in);
-                versionApp = props.getProperty("versionApp", "0.0");
-            } catch (IOException e) {
-                versionApp = "0.0";
-            }
-        }
-        return versionApp;
+        return VERSION_ACTUAL;
     }
 
-// 🔹 Cambiar de empresa desde el login
-public static void cambiarDeEmpresa(JFrame frame, JTextField txtCorreo,
-                                    JTextField txtIdEmpresa, JPasswordField txtPass) {
-    boolean empresaDetectada = txtIdEmpresa != null && !txtIdEmpresa.getText().trim().isEmpty();
+    // 🔹 Cambiar de empresa desde el login
+    public static void cambiarDeEmpresa(JFrame frame, JTextField txtCorreo,
+                                        JTextField txtIdEmpresa, JPasswordField txtPass) {
+        boolean empresaDetectada = txtIdEmpresa != null && !txtIdEmpresa.getText().trim().isEmpty();
 
-    // Limpiar datos de login, pero conservar la versión
-    limpiarDatosPorCambioEmpresa();
+        // Limpiar datos de login
+        limpiarDatosPorCambioEmpresa();
 
-    // Limpiar campos visuales
-    if (txtCorreo != null) txtCorreo.setText("");
-    if (txtIdEmpresa != null) txtIdEmpresa.setText("");
-    if (txtPass != null) txtPass.setText("");
+        // Limpiar campos visuales
+        if (txtCorreo != null) txtCorreo.setText("");
+        if (txtIdEmpresa != null) txtIdEmpresa.setText("");
+        if (txtPass != null) txtPass.setText("");
 
-    // Habilitar edición
-    if (txtCorreo != null) txtCorreo.setEditable(true);
-    if (txtIdEmpresa != null) txtIdEmpresa.setEditable(true);
+        // Habilitar edición
+        if (txtCorreo != null) txtCorreo.setEditable(true);
+        if (txtIdEmpresa != null) txtIdEmpresa.setEditable(true);
 
-    // Mensaje informativo
-    if (empresaDetectada) {
-        JOptionPane.showMessageDialog(
-                frame,
-                "Cambio de empresa realizado.\nIngresa los nuevos datos de la empresa.",
-                "Cambio de empresa",
-                JOptionPane.INFORMATION_MESSAGE
-        );
-    } else {
-        JOptionPane.showMessageDialog(
-                frame,
-                "No se detectó empresa en login.\nIngresa los datos de la empresa para continuar.",
-                "Empresa no detectada",
-                JOptionPane.WARNING_MESSAGE
-        );
-    }
-}
-public static void limpiarDatosPorCambioEmpresa() {
-    // Limpiar solo login en memoria
-    idEmpresa = 0;
-    correo = "";
-
-    if (CONFIG_FILE.exists()) {
-        Properties props = new Properties();
-        try (FileInputStream in = new FileInputStream(CONFIG_FILE)) {
-            props.load(in);
-        } catch (IOException ignored) {}
-
-        String version = props.getProperty("versionApp", "0.0"); // conservar versión
-        props.clear();
-        props.setProperty("versionApp", version);
-
-        try (FileOutputStream out = new FileOutputStream(CONFIG_FILE)) {
-            props.store(out, "Datos reiniciados por cambio de empresa");
-        } catch (IOException e) {
-            e.printStackTrace();
+        // Mensaje informativo
+        if (empresaDetectada) {
+            JOptionPane.showMessageDialog(
+                    frame,
+                    "Cambio de empresa realizado.\nIngresa los nuevos datos de la empresa.",
+                    "Cambio de empresa",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        } else {
+            JOptionPane.showMessageDialog(
+                    frame,
+                    "No se detectó empresa en login.\nIngresa los datos de la empresa para continuar.",
+                    "Empresa no detectada",
+                    JOptionPane.WARNING_MESSAGE
+            );
         }
     }
-}
 
+    public static void limpiarDatosPorCambioEmpresa() {
+        idEmpresa = 0;
+        correo = "";
+        if (CONFIG_FILE.exists()) CONFIG_FILE.delete();
+    }
 }

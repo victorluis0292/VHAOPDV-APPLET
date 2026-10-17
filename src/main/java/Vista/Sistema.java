@@ -289,7 +289,7 @@ jPanel17.add(panelCreditoCliente, BorderLayout.CENTER);
 jPanel17.revalidate();
 jPanel17.repaint();
     
-    // -------------------------
+        // -------------------------
     // 🔹 Ajustes de layout en jPanel2 (verdulería y tabla)
     // -------------------------
     jPanel2.remove(jScrollPane1);
@@ -297,11 +297,20 @@ jPanel17.repaint();
 
     panelVerduleria = new Vista.VerduleriaPanel();
     jPanel2.add(panelVerduleria, new org.netbeans.lib.awtextra.AbsoluteConstraints(700, 160, 360, 310));
-    new Controlador.VerduleriaController(panelVerduleria, TableVenta);
+
+    Controlador.VerduleriaController verduleriaController =
+            new Controlador.VerduleriaController(panelVerduleria, TableVenta);
+    verduleriaController.setOnProductoAgregado(() -> {
+        txtCodigoVenta.requestFocusInWindow();
+        txtCodigoVenta.selectAll();
+    });
+
     TableVenta.getModel().addTableModelListener(evt -> TotalPagarX());
 
     jPanel2.revalidate();
     jPanel2.repaint();
+
+    // -------------------------
 
     // -------------------------
     // 🔹 BOTÓN CERRAR SESIÓN: solo se crea si no existe

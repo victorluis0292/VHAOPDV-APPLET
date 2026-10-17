@@ -1421,10 +1421,15 @@ public class PanelProductos extends JPanel {
         new Thread(() -> {
 
             List<CatalogoGlobal> lista = (filtro == null || filtro.isEmpty())
-                    ? catalogoDao.buscarPorNombre("")
-                    : catalogoDao.buscarPorNombre(filtro);
+        ? catalogoDao.buscarPorNombre("")
+        : catalogoDao.buscarPorNombre(filtro);
 
-            SwingUtilities.invokeLater(() -> {
+        // Descarga (o lee del caché) las imágenes aquí, fuera del hilo de la interfaz
+        if (lista != null) {
+            for (CatalogoGlobal c : lista) Utilidades.CacheImagenes.icono(c.getImagenUrl(), 90);
+            }
+
+        SwingUtilities.invokeLater(() -> {
 
                 panelContenedor.removeAll();
 
@@ -1446,19 +1451,8 @@ public class PanelProductos extends JPanel {
 
                         String imageUrl = cat.getImagenUrl();
 
-                        if (imageUrl != null && !imageUrl.trim().isEmpty()) {
-                            try {
-                                URL url = new URL(imageUrl.trim());
-                                BufferedImage img = ImageIO.read(url);
-
-                                if (img != null) {
-                                    Image dimg = img.getScaledInstance(90, 90, Image.SCALE_SMOOTH);
-                                    btnItem.setIcon(new ImageIcon(dimg));
-                                }
-                            } catch (Exception ex) {
-                                // Continúa con texto
-                            }
-                        }
+                        ImageIcon icono = Utilidades.CacheImagenes.icono(cat.getImagenUrl(), 90);
+                        if (icono != null) btnItem.setIcon(icono);
 
                         btnItem.setText("<html><center>" + cat.getNombre() + "</center></html>");
                         btnItem.setVerticalTextPosition(SwingConstants.BOTTOM);

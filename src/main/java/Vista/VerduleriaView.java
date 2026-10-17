@@ -205,7 +205,6 @@ public class VerduleriaView extends JDialog {
             public void removeUpdate(DocumentEvent e) { actualizarTotal(); }
             public void changedUpdate(DocumentEvent e) { actualizarTotal(); }
         });
-
         stepper.add(btnMenos, BorderLayout.WEST);
         stepper.add(txtCantidad, BorderLayout.CENTER);
         stepper.add(btnMas, BorderLayout.EAST);
