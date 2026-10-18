@@ -106,6 +106,11 @@ import javax.swing.BoxLayout;
 import Controlador.VerduleriaController;
 import javax.swing.JScrollPane;
 import Controlador.HistorialVentasController;
+//promociones
+import Modelo.Promocion;
+import Modelo.PromocionDao;
+import Servicios.CalculadoraPromociones;
+import javax.swing.table.TableCellRenderer;
 
 
 public final class Sistema extends javax.swing.JFrame {
@@ -131,6 +136,11 @@ public final class Sistema extends javax.swing.JFrame {
     
     private Vista.CreditoClientePanel panelCreditoCliente;
     private Controlador.CreditoClienteController creditoClienteController;
+    
+    //promociones
+    // campos de la clase
+private boolean aplicandoPromos = false;
+private List<Promocion> promosVigentes = new ArrayList<>();
 
 public static void setUsuarioActivo(String usuario) {
     usuarioActivo = usuario;
@@ -626,6 +636,7 @@ for (int i = 0; i < jPanelMenuCorte.getComponentCount(); i++) {
     System.out.println("DEBUG: inicializarSistema completado. Panel lateral tiene " + jPanel1.getComponentCount() + " componentes.");
 // 🔹 CARGAR DATOS EN EL PANEL DE VERDULERÍA YA EXISTENTE (`panelVerduleria`)
 refrescarPanelVerduleria();
+cargarPromosVigentes();
   
 } 
 private void refrescarPanelVerduleria() {
@@ -3211,11 +3222,19 @@ lg.setIdEmpresa(Sistema.getIdEmpresaActiva());
 }                                     
 
     private void btnEliminarventaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarventaActionPerformed
-        // TODO add your handling code here:
-        modelo = (DefaultTableModel) TableVenta.getModel();
-        modelo.removeRow(TableVenta.getSelectedRow());
-        TotalPagarX();
-        txtCodigoVenta.requestFocus();
+       int fila = TableVenta.getSelectedRow();
+if (fila < 0) {
+    JOptionPane.showMessageDialog(null, "Seleccione un producto");
+    return;
+}
+if (esFilaPromo(TableVenta.getValueAt(fila, 0))) {
+    JOptionPane.showMessageDialog(null, "La promoción se quita sola al quitar el producto.");
+    return;
+}
+modelo = (DefaultTableModel) TableVenta.getModel();
+modelo.removeRow(fila);
+TotalPagarX();
+txtCodigoVenta.requestFocus();
     }//GEN-LAST:event_btnEliminarventaActionPerformed
 
     private void txtCantidadVentaKeyTyped(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_txtCantidadVentaKeyTyped
@@ -3317,14 +3336,6 @@ public void abrirVentanaCobrar() {
         txtCodigoVenta.requestFocus();
     }
 }
-
-
-
-
-
-
-
-
 
    //// hasta aqui
 
@@ -3437,11 +3448,6 @@ public void abrirVentanaCobrar() {
             LimpiarEntrada();
         }
     }
-       
-        
-
-
-
 
         // TODO add your handling code here:
     }//GEN-LAST:event_txtCodigoEntradaKeyPressed
@@ -3669,13 +3675,14 @@ txtDesPro.setText(""+mayus.toUpperCase());  // TODO add your handling code here:
     }//GEN-LAST:event_txtCodigoVentaActionPerformed
 
     private void btnTodasFilasActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnTodasFilasActionPerformed
-Object[][] filas = new Object[TableVenta.getRowCount()][5];
+List<Object[]> filasCredito = new ArrayList<>();
 for (int i = 0; i < TableVenta.getRowCount(); i++) {
-    for (int j = 0; j < 5; j++) {
-        filas[i][j] = TableVenta.getValueAt(i, j);
-    }
+    if (esFilaPromo(TableVenta.getValueAt(i, 0))) continue;   // sin promo en crédito
+    Object[] fila = new Object[5];
+    for (int j = 0; j < 5; j++) fila[j] = TableVenta.getValueAt(i, j);
+    filasCredito.add(fila);
 }
-creditoClienteController.agregarFilasDesdeVenta(filas);
+creditoClienteController.agregarFilasDesdeVenta(filasCredito.toArray(new Object[0][]));
 LimpiarTableVenta();
 Menu.setSelectedIndex(8);
     }//GEN-LAST:event_btnTodasFilasActionPerformed
@@ -3901,7 +3908,8 @@ private void abrirVentanaBuscar() {
 
     private void formWindowActivated(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowActivated
 //TotalPagarCreditoCliente();
-        TotalPagarX();
+    if (sistemaYaIniciado) cargarPromosVigentes();        
+    TotalPagarX();
         EnterClienteVenta();
         EnterClienteCredit();
         
@@ -4358,6 +4366,7 @@ void Operacion(){
     }
 //suma las filas de la tabla venta
    public void TotalPagarX() {
+        aplicarPromociones(); 
         TotalPagar = 0.00;
         int numFila = TableVenta.getRowCount();
         for (int i = 0; i < numFila; i++) {
@@ -4552,13 +4561,8 @@ private void RegistrarDetalle() {
     }
 }
 
-
-
-    //------credito cliente-------------
- 
-      
- 
-  public void LimpiarTableVenta() {
+   //------credito cliente-------------
+ public void LimpiarTableVenta() {
     DefaultTableModel tmp = (DefaultTableModel) TableVenta.getModel();
     tmp.setRowCount(0);  // Limpia todas las filas
     lblEnviaTotal.setText("");
@@ -4577,9 +4581,7 @@ private void RegistrarDetalle() {
         txtIdCV.setText("");
     }
     
-    
-
-    private void nuevoUsuario(){
+        private void nuevoUsuario(){
         txtNombre.setText("");
         txtCorreo.setText("");
         txtPass.setText("");
@@ -4594,18 +4596,15 @@ private void RegistrarDetalle() {
     for (Proveedor p : lista) {
         cbxProveedorPro.addItem(new Combo(p.getId(), p.getNombre()));
     }
-
     // 🔹 Al final agregamos la opción especial
     cbxProveedorPro.addItem(new Combo(-1, "➕ Agregar proveedor..."));
 }
-
 
 public void cerrarSesion() {
     // Guardamos el correo del usuario actual para recordar en Login
     if (usuarioLogueado != null) {
         Utilidades.ConfigApp.guardarDatos(idEmpresaActiva, usuarioLogueado.getCorreo());
     }
-
     // 🔒 Cerrar pool de conexiones antes de reiniciar
     Conexion.closeDataSource();
 
@@ -4613,5 +4612,90 @@ public void cerrarSesion() {
     reiniciarInstancia();
 }
 
+//promociones
+private static boolean esFilaPromo(Object idCelda) {
+    return idCelda != null && idCelda.toString().startsWith("P-");
+}
 
+public void cargarPromosVigentes() {
+    try {
+        promosVigentes = new PromocionDao().listarVigentes(idEmpresaActiva,
+                java.time.LocalDate.now(java.time.ZoneId.of("America/Monterrey")));
+    } catch (Exception ex) {
+        System.err.println("No se pudieron cargar las promociones: " + ex.getMessage());
+    }
+    System.out.println("[PROMO] vigentes cargadas: " + promosVigentes.size() + " (empresa " + idEmpresaActiva + ")");
+
+}
+
+private void aplicarPromociones() {
+    if (aplicandoPromos) return;
+    aplicandoPromos = true;
+    try {
+        DefaultTableModel m = (DefaultTableModel) TableVenta.getModel();
+
+        // 1. quitar las filas de promo anteriores
+       for (int i = m.getRowCount() - 1; i >= 0; i--) {
+    if (esFilaPromo(m.getValueAt(i, 0))) m.removeRow(i);
+}
+System.out.println("[PROMO] aplicar: promos="
+        + (promosVigentes == null ? -1 : promosVigentes.size()) + ", filas=" + m.getRowCount());
+if (promosVigentes == null || promosVigentes.isEmpty() || m.getRowCount() == 0) return;
+
+        // 2. líneas de productos
+        List<CalculadoraPromociones.Linea> lineas = new ArrayList<>();
+        for (int i = 0; i < m.getRowCount(); i++) {
+            lineas.add(new CalculadoraPromociones.Linea(
+                    Integer.parseInt(m.getValueAt(i, 0).toString()),
+                    Double.parseDouble(m.getValueAt(i, 2).toString().replace(",", ".")),
+                    Double.parseDouble(m.getValueAt(i, 3).toString())));
+        }
+
+        // 3. calcular y preparar la fila de cada promo (debajo del último producto de su grupo)
+        List<Object[]> pendientes = new ArrayList<>(); // {índice, fila}
+        for (CalculadoraPromociones.Aplicada a : CalculadoraPromociones.calcular(lineas, promosVigentes)) {
+            Promocion promo = null;
+            for (Promocion p : promosVigentes) {
+                if (p.getId() == a.idPromocion) { promo = p; break; }
+            }
+            if (promo == null) continue;
+
+            int ultimo = -1;
+            for (int i = 0; i < m.getRowCount(); i++) {
+                if (promo.getIdProductos().contains(Integer.parseInt(m.getValueAt(i, 0).toString()))) ultimo = i;
+            }
+            Object[] fila = {"P-" + a.idPromocion, "Promo: " + a.descripcion, a.paquetes, "", -a.descuento};
+            pendientes.add(new Object[]{ultimo + 1, fila});
+        }
+
+        // 4. insertar de abajo hacia arriba para no mover los índices
+        pendientes.sort((x, y) -> (Integer) y[0] - (Integer) x[0]);
+        for (Object[] p : pendientes) {
+            m.insertRow((Integer) p[0], (Object[]) p[1]);
+        }
+    } catch (Exception ex) {
+        ex.printStackTrace();
+    } finally {
+        aplicandoPromos = false;
+    }
+    
+}
+
+// Pinta las filas de promo en verde y cursiva
+private void instalarRendererPromo() {
+    for (int c = 0; c < TableVenta.getColumnCount(); c++) {
+        final TableCellRenderer base = TableVenta.getColumnModel().getColumn(c).getCellRenderer();
+        TableVenta.getColumnModel().getColumn(c).setCellRenderer((tbl, val, sel, foc, row, col) -> {
+            TableCellRenderer r = (base != null) ? base
+                    : tbl.getDefaultRenderer(val == null ? Object.class : val.getClass());
+            Component comp = r.getTableCellRendererComponent(tbl, val, sel, foc, row, col);
+            if (!sel && esFilaPromo(tbl.getValueAt(row, 0))) {
+                comp.setForeground(new Color(0, 128, 0));
+                comp.setBackground(new Color(232, 245, 233));
+                comp.setFont(comp.getFont().deriveFont(Font.ITALIC));
+            }
+            return comp;
+        });
+    }
+}
 }

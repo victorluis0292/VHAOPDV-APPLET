@@ -54,7 +54,7 @@ public static void estiloTablas(JTable tabla) {
 
             String nombre = table.getValueAt(row, 2).toString();
 
-            if (nombre.equalsIgnoreCase("ABONO REALIZADO")) {
+            if (nombre.toUpperCase().startsWith("ABONO REALIZADO")) {
                 c.setBackground(new Color(204, 255, 229)); // verde claro
                 c.setFont(c.getFont().deriveFont(Font.BOLD));
             } else if (isSelected) {
@@ -70,8 +70,9 @@ public static void estiloTablas(JTable tabla) {
     };
 
     for (int i = 0; i < tabla.getColumnModel().getColumnCount(); i++) {
-        tabla.getColumnModel().getColumn(i).setCellRenderer(renderer);
-    }
+    if ("Eliminar".equals(tabla.getColumnName(i))) continue;   // no pisar el botón
+    tabla.getColumnModel().getColumn(i).setCellRenderer(renderer);
+}
 
     tabla.setShowGrid(false);
     tabla.setIntercellSpacing(new java.awt.Dimension(0, 0));
@@ -96,10 +97,10 @@ public static void ajustarAnchosPorNombre(JTable tabla) {
         // Usamos un switch para asignar el ancho según el nombre
         switch (nombreColumna) {
             case "Nombre":
-                columnModel.getColumn(i).setPreferredWidth(300);
-                break;
+                    columnModel.getColumn(i).setPreferredWidth(450);
+                    break;
             case "Fecha":
-                columnModel.getColumn(i).setPreferredWidth(150);
+                    columnModel.getColumn(i).setPreferredWidth(120);
                 break;
             case "ID":
                 columnModel.getColumn(i).setPreferredWidth(60);

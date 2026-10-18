@@ -51,6 +51,7 @@ public class PanelProductos extends JPanel {
     public JRadioButton rbPorUnidad, rbAGranel, rbComoPaquete;
     public JTable TableProducto;
     public DefaultTableModel modelo;
+    public JButton btnPromociones;
 
     private ButtonGroup grupoTipoVenta;
     private final CategoriaDao categoriaDao = new CategoriaDao();
@@ -130,6 +131,15 @@ public class PanelProductos extends JPanel {
         panelSuperior.add(lblTitulo, BorderLayout.WEST);
         panelSuperior.add(panelBusqueda, BorderLayout.EAST);
         add(panelSuperior, BorderLayout.NORTH);
+        
+        //-----Boto de pantalla promociones
+        btnPromociones = new JButton("Promociones");
+       btnPromociones.setPreferredSize(new Dimension(150, 34));
+       Estilos.estiloBotonAzul(btnPromociones);
+       JPanel panelCentro = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
+       panelCentro.setOpaque(false);
+       panelCentro.add(btnPromociones);
+       panelSuperior.add(panelCentro, BorderLayout.CENTER);
 
         // --- Botones Excel ---
         btnExportarExcel = new JButton("Exportar");
@@ -850,6 +860,9 @@ public class PanelProductos extends JPanel {
     // ============================================================
 
     private void initEvents() {
+        //--Promociones---
+        btnPromociones.addActionListener(e ->
+    new FrmPromociones((Frame) SwingUtilities.getWindowAncestor(this), idEmpresa, proDao).setVisible(true));
 
         // --- Exportar ---
         btnExportarExcel.addActionListener(e -> {

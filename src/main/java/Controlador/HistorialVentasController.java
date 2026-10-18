@@ -253,14 +253,34 @@ case "mixto":
     }
     private Date parsearFechaVenta(String fechaHoraStr) {
     try {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        
-        // Esto toma automáticamente la zona horaria de la PC (Windows/Linux) donde abres el programa
-        sdf.setTimeZone(java.util.TimeZone.getDefault()); 
-        
-        return sdf.parse(fechaHoraStr);
+        SimpleDateFormat local =
+                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+        local.setTimeZone(
+                java.util.TimeZone.getDefault()
+        );
+
+        Date fechaLocal = local.parse(fechaHoraStr);
+
+        SimpleDateFormat utc =
+                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+        utc.setTimeZone(
+                java.util.TimeZone.getTimeZone("UTC")
+        );
+
+        System.out.println("Fecha recibida de BD: " + fechaHoraStr);
+        System.out.println("Interpretada como hora local: "
+                + local.format(fechaLocal));
+        System.out.println("El mismo instante en UTC: "
+                + utc.format(fechaLocal));
+
+        return fechaLocal;
+
     } catch (Exception e) {
-        return new Date();
+        throw new IllegalArgumentException(
+                "Error al interpretar fecha: " + fechaHoraStr, e
+        );
     }
 }
 }

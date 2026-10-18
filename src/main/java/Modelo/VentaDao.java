@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Locale;
 import javax.swing.JOptionPane;
 import Vista.Sistema;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 public class VentaDao {
     private Conexion cn = new Conexion();
@@ -66,7 +68,11 @@ public class VentaDao {
             ps.setDouble(4, venta.getTotal());
             ps.setDate(5, fechaSQL);
             ps.setString(6, venta.getTipopago());
-            ps.setTimestamp(7, new Timestamp(obtenerFechaHoraLocal()));
+            LocalDateTime fechaHoraLocal = LocalDateTime.now(
+             ZoneId.of("America/Monterrey")
+            );
+
+ps.setObject(7, fechaHoraLocal);
             ps.setInt(8, venta.getIdTurno());
             ps.setDouble(9, venta.getPagaCon());
             ps.setDouble(10, venta.getCambio());
@@ -259,7 +265,18 @@ public class VentaDao {
                     venta.setComision(rs.getDouble("comision"));
                     venta.setFecha(rs.getString("fecha"));
                     venta.setTipopago(rs.getString("tipopago"));
-                    venta.setFechaHora(rs.getString("fecha_hora"));
+                    java.time.LocalDateTime fechaHora =
+    rs.getObject("fecha_hora", java.time.LocalDateTime.class);
+
+if (fechaHora != null) {
+    venta.setFechaHora(
+        fechaHora.format(
+            java.time.format.DateTimeFormatter.ofPattern(
+                "yyyy-MM-dd HH:mm:ss"
+            )
+        )
+    );
+}
                     venta.setIdTurno(rs.getInt("id_turno"));
                     venta.setNombre_cli(rs.getString("nombre_cliente"));
                     venta.setNombreEmpresa(rs.getString("nombre_empresa"));
@@ -419,7 +436,18 @@ public class VentaDao {
                     v.setComision(rs.getDouble("comision"));
                     v.setFecha(rs.getString("fecha"));
                     v.setTipopago(rs.getString("tipopago"));
-                    v.setFechaHora(rs.getString("fecha_hora"));
+                    java.time.LocalDateTime fechaHora =
+    rs.getObject("fecha_hora", java.time.LocalDateTime.class);
+
+if (fechaHora != null) {
+    v.setFechaHora(
+        fechaHora.format(
+            java.time.format.DateTimeFormatter.ofPattern(
+                "yyyy-MM-dd HH:mm:ss"
+            )
+        )
+    );
+}
                     v.setIdTurno(rs.getInt("id_turno"));
                     v.setNombre_cli(rs.getString("nombre_cliente"));
                     v.setNombreEmpresa(rs.getString("nombre_empresa"));
@@ -560,6 +588,13 @@ public class VentaDao {
                 }
 
                 doc.add(tabla);
+               //promociones//
+                 for (Object[] p : listarPromocionesPorVenta(idVenta)) {
+                 doc.add(new Paragraph("Promo P-" + p[0] + ": " + p[1]
+                 + "  -" + moneda.format((double) p[3])));
+                 }
+              //promociones //
+                
                 doc.add(Chunk.NEWLINE);
                 doc.add(new Paragraph("TOTAL: " + moneda.format(venta.getTotal()), negrita));
                 doc.close();
@@ -589,4 +624,49 @@ public class VentaDao {
             return false;
         }
     }
+    
+    // promociones//
+    // Guarda la promoción aplicada a una venta (se llama después de RegistrarVenta)
+public int RegistrarVentaPromocion(int idVenta, int idPromocion, String descripcion,
+                                   int paquetes, double descuento) {
+    int filas = 0;
+    String sql = "INSERT INTO venta_promociones (id_venta, id_promocion, descripcion, paquetes, descuento) "
+               + "VALUES (?, ?, ?, ?, ?)";
+    try (Connection con = cn.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setInt(1, idVenta);
+        ps.setInt(2, idPromocion);
+        ps.setString(3, descripcion);
+        ps.setInt(4, paquetes);
+        ps.setDouble(5, descuento);
+        filas = ps.executeUpdate();
+    } catch (SQLException e) {
+        System.err.println("Error en RegistrarVentaPromocion: " + e);
+    }
+    return filas;
+}
+
+// Promociones de una venta, para ticket, PDF e historial
+public List<Object[]> listarPromocionesPorVenta(int idVenta) {
+    List<Object[]> lista = new ArrayList<>();
+    String sql = "SELECT id_promocion, descripcion, paquetes, descuento "
+               + "FROM venta_promociones WHERE id_venta = ?";
+    try (Connection con = cn.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setInt(1, idVenta);
+        try (ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                lista.add(new Object[]{
+                    rs.getInt("id_promocion"),
+                    rs.getString("descripcion"),
+                    rs.getInt("paquetes"),
+                    rs.getDouble("descuento")
+                });
+            }
+        }
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+    return lista;
+}
 }

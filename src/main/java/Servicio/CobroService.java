@@ -16,6 +16,11 @@ public class CobroService {
         this.idEmpresaActiva = id;
     }
 
+    // NUEVO: las filas de promoción en TableVenta llevan "P-<id>" en la columna 0
+    private static boolean esFilaPromo(Object idCelda) {
+        return idCelda != null && idCelda.toString().startsWith("P-");
+    }
+
     public int procesarVenta(int idTurno, int idCliente, String vendedor, JTable tablaVenta, double total,String tipoPago, double pagaCon, double cambio, double comision, double subtotal) throws Exception {
 
         System.out.println("🚀 procesarVenta iniciado con idTurno=" + idTurno + ", idCliente=" + idCliente);
@@ -50,6 +55,10 @@ public class CobroService {
         }
 
         for (int i = 0; i < tablaVenta.getRowCount(); i++) {
+
+            // NUEVO: saltar las subfilas de promoción
+            if (esFilaPromo(tablaVenta.getValueAt(i, 0))) continue;
+
             int idProducto = Integer.parseInt(tablaVenta.getValueAt(i, 0).toString());
             double cantidad = Double.parseDouble(
                 tablaVenta.getValueAt(i, 2).toString().replace(",", ".")
@@ -91,6 +100,25 @@ public class CobroService {
 
             } else {
                 System.out.println("❌ Producto con ID " + idProducto + " no pertenece a la empresa activa.");
+            }
+        }
+
+        // NUEVO: registrar las promociones que ya se aplicaron en pantalla (nunca en crédito)
+        if (!tipoPago.equalsIgnoreCase("credito")) {
+            for (int i = 0; i < tablaVenta.getRowCount(); i++) {
+                String idCelda = tablaVenta.getValueAt(i, 0).toString();
+                if (!esFilaPromo(idCelda)) continue;
+                try {
+                    int idPromo = Integer.parseInt(idCelda.substring(2));
+                    String desc = tablaVenta.getValueAt(i, 1).toString();
+                    if (desc.startsWith("Promo: ")) desc = desc.substring(7);
+                    int paquetes = Integer.parseInt(tablaVenta.getValueAt(i, 2).toString());
+                    double descuento = Math.abs(Double.parseDouble(tablaVenta.getValueAt(i, 4).toString()));
+                    ventaDao.RegistrarVentaPromocion(idVenta, idPromo, desc, paquetes, descuento);
+                } catch (Exception ex) {
+                    // la venta ya quedó guardada; solo se avisa en consola
+                    System.err.println("⚠ No se pudo registrar la promo de la fila " + i + ": " + ex.getMessage());
+                }
             }
         }
 

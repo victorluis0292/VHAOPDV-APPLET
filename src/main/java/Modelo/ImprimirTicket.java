@@ -10,12 +10,11 @@ import java.util.TimeZone;
 
 public class ImprimirTicket {
 
-
     private static SimpleDateFormat getFechaFormat() {
-  SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-sdf.setTimeZone(TimeZone.getTimeZone("GMT-6"));; 
-    return sdf;
-}
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+        sdf.setTimeZone(TimeZone.getTimeZone("GMT-6"));
+        return sdf;
+    }
 
     private static int obtenerFolio(int idVenta) {
         int folio = 0;
@@ -55,6 +54,27 @@ sdf.setTimeZone(TimeZone.getTimeZone("GMT-6"));;
         return datos;
     }
 
+    // NUEVO: agrega al ticket las promociones aplicadas a la venta (si hay)
+    private static void agregarPromociones(StringBuilder sb, Connection con, int idVenta) {
+        String sql = "SELECT descripcion, descuento FROM venta_promociones WHERE id_venta = ?";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, idVenta);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String descripcion = rs.getString("descripcion");
+                    double descuento = rs.getDouble("descuento");
+
+                    sb.append(descripcion).append("\n");
+                    sb.append(String.format("%-18s %10s\n", "Ahorro:",
+                            "-$" + String.format("%.2f", descuento)));
+                }
+            }
+        } catch (SQLException e) {
+            // si falla, el ticket sale igual pero sin las líneas de promo
+            System.err.println("[TICKET] Error al leer promociones: " + e.getMessage());
+        }
+    }
+
     public static void imprimir(String contenidoTicket) {
         try {
             PrintService[] services = PrintServiceLookup.lookupPrintServices(null, null);
@@ -87,7 +107,8 @@ sdf.setTimeZone(TimeZone.getTimeZone("GMT-6"));;
     // =============================================
     // TICKET EFECTIVO
     // =============================================
-        public static String generarTicketEfectivo(int idVenta, double pago, double cambio, String tipoPago, Date fechaVenta) {        StringBuilder sb = new StringBuilder();
+    public static String generarTicketEfectivo(int idVenta, double pago, double cambio, String tipoPago, Date fechaVenta) {
+        StringBuilder sb = new StringBuilder();
         int folio = obtenerFolio(idVenta);
 
         try (Connection con = Conexion.getConnection()) {
@@ -102,7 +123,7 @@ sdf.setTimeZone(TimeZone.getTimeZone("GMT-6"));;
             sb.append("Tel: ").append(telefono).append("\n");
             sb.append("------------------------------\n");
             sb.append("Folio: ").append(folio).append("\n");
-            sb.append("Fecha: ").append(getFechaFormat().format(fechaVenta)).append("\n");  
+            sb.append("Fecha: ").append(getFechaFormat().format(fechaVenta)).append("\n");
             String sqlVenta = "SELECT v.total, c.nombre AS cliente " +
                     "FROM ventas v LEFT JOIN clientes c ON v.cliente = c.id WHERE v.id = ?";
             double totalVenta = 0;
@@ -145,6 +166,9 @@ sdf.setTimeZone(TimeZone.getTimeZone("GMT-6"));;
                 }
             }
 
+            // NUEVO: promociones aplicadas
+            agregarPromociones(sb, con, idVenta);
+
             sb.append("------------------------------\n");
             sb.append("Tipo: ").append(tipoPago).append("\n");
             sb.append(String.format("%-12s $%8.2f\n", "TOTAL:", totalVenta));
@@ -165,7 +189,8 @@ sdf.setTimeZone(TimeZone.getTimeZone("GMT-6"));;
     // =============================================
     // TICKET TARJETA / MIXTO
     // =============================================
-        public static String generarTicketTarjeta(int idVenta, double comision, String tipoPago, double subtotal, Date fechaVenta) {        StringBuilder sb = new StringBuilder();
+    public static String generarTicketTarjeta(int idVenta, double comision, String tipoPago, double subtotal, Date fechaVenta) {
+        StringBuilder sb = new StringBuilder();
         int folio = obtenerFolio(idVenta);
 
         try (Connection con = Conexion.getConnection()) {
@@ -215,6 +240,9 @@ sdf.setTimeZone(TimeZone.getTimeZone("GMT-6"));;
                 }
             }
 
+            // NUEVO: promociones aplicadas
+            agregarPromociones(sb, con, idVenta);
+
             sb.append("----------------------\n");
             sb.append("Tipo: ").append(tipoPago).append("\n");
             sb.append(String.format("%-12s $%8.2f\n", "SUBTOTAL:", subtotal));
@@ -233,9 +261,9 @@ sdf.setTimeZone(TimeZone.getTimeZone("GMT-6"));;
     }
 
     // =============================================
-    // TICKET CRÉDITO
+    // TICKET CRÉDITO (sin promociones)
     // =============================================
-    public static String generarTicketCredito(int idVenta, double total, String tipoPago, 
+    public static String generarTicketCredito(int idVenta, double total, String tipoPago,
                                          List<String[]> productos, List<String[]> abonos,
                                          double pagaCon, double cambio, String cliente, Date fechaVenta) {
         StringBuilder sb = new StringBuilder();
@@ -294,14 +322,12 @@ sdf.setTimeZone(TimeZone.getTimeZone("GMT-6"));;
 
         return sb.toString();
     }
+
     // =============================================
-    // TICKET CRÉDITO CON TARJETA
+    // TICKET CRÉDITO CON TARJETA (sin promociones)
     // =============================================
-    // =============================================
-    // TICKET CRÉDITO CON TARJETA
-    // =============================================
-    public static String generarTicketCreditoConTarjeta(int idVenta, String cliente, double subtotal, 
-                                                    double comision, double total, 
+    public static String generarTicketCreditoConTarjeta(int idVenta, String cliente, double subtotal,
+                                                    double comision, double total,
                                                     List<String[]> productos, List<String[]> abonos, Date fechaVenta) {
         StringBuilder sb = new StringBuilder();
         int folio = obtenerFolio(idVenta);
@@ -357,13 +383,13 @@ sdf.setTimeZone(TimeZone.getTimeZone("GMT-6"));;
         sb.append("¡Gracias por su compra!\n\n");
 
         return sb.toString();
-    }// TICKET CRÉDITO MIXTO
+    }
+
     // =============================================
-  // =============================================
-    // TICKET CRÉDITO MIXTO
+    // TICKET CRÉDITO MIXTO (sin promociones)
     // =============================================
-    public static String generarTicketCreditoMixto(int idVenta, String cliente, double subtotal, 
-                                               double comision, double total, 
+    public static String generarTicketCreditoMixto(int idVenta, String cliente, double subtotal,
+                                               double comision, double total,
                                                List<String[]> productos, List<String[]> abonos, Date fechaVenta) {
         StringBuilder sb = new StringBuilder();
         int folio = obtenerFolio(idVenta);
@@ -419,7 +445,10 @@ sdf.setTimeZone(TimeZone.getTimeZone("GMT-6"));;
         sb.append("¡Gracias por su compra!\n\n");
 
         return sb.toString();
-    }  // UTILITY
+    }
+
+    // =============================================
+    // UTILITY
     // =============================================
     private static String centrarConSaltos(String texto, int ancho) {
         StringBuilder sb = new StringBuilder();
@@ -442,4 +471,27 @@ sdf.setTimeZone(TimeZone.getTimeZone("GMT-6"));;
         }
         return String.format("%sx$%.2f   $%.2f\n", cantidadStr, precioUnit, subTotal);
     }
+    
+    private static String formatearFechaVenta(String fechaHora) {
+    if (fechaHora == null || fechaHora.trim().isEmpty()) {
+        return "";
+    }
+
+    try {
+        java.time.LocalDateTime fecha =
+                java.time.LocalDateTime.parse(
+                        fechaHora.trim(),
+                        java.time.format.DateTimeFormatter.ofPattern(
+                                "yyyy-MM-dd HH:mm:ss"));
+
+        return fecha.format(
+                java.time.format.DateTimeFormatter.ofPattern(
+                        "dd/MM/yyyy HH:mm"));
+
+    } catch (Exception e) {
+        System.err.println(
+                "[TICKET] Fecha inválida: " + fechaHora);
+        return fechaHora;
+    }
+}
 }

@@ -93,7 +93,7 @@ public class TablaBotonEliminarProducto {
                                 VentaDao dao = new VentaDao();
                                 boolean eliminado = false;
 
-                                if ("ABONO REALIZADO".equalsIgnoreCase(nombre)) {
+                                if (nombre.toUpperCase().startsWith("ABONO REALIZADO")) {
                                     System.out.println("[LOG] Eliminando abono de crédito...");
                                     eliminado = dao.eliminarAbonoCreditoPorId(id);
                                 } else {
@@ -105,19 +105,16 @@ public class TablaBotonEliminarProducto {
                                 System.out.println("[LOG] Resultado de eliminación: " + eliminado);
 
                                 if (eliminado) {
-                                    ((DefaultTableModel) table.getModel()).removeRow(selectedRow);
-                                    System.out.println("[LOG] Fila eliminada de la tabla correctamente.");
-
-                                    if (ventana != null) {
-                                        System.out.println("[LOG] Actualizando total desde tabla...");
-                                        ventana.actualizarTotalDesdeTabla();
-                                    }
-
-                                    JOptionPane.showMessageDialog(null, "Registro eliminado correctamente");
-                                } else {
-                                    JOptionPane.showMessageDialog(null, "Error al eliminar el registro en la base de datos");
-                                }
-                            } catch (Exception ex) {
+                    cancelCellEditing();              // 1º: suelta el editor
+                    if (ventana != null) {
+                        ventana.listar();             // 2º: recarga la tabla y el total desde la BD
+                    }
+                    JOptionPane.showMessageDialog(null, "Registro eliminado correctamente");
+                    } else {
+                    cancelCellEditing();
+                    JOptionPane.showMessageDialog(null, "Error al eliminar el registro en la base de datos");
+                    }
+                                        } catch (Exception ex) {
                                 ex.printStackTrace();
                                 JOptionPane.showMessageDialog(null, "Error interno al intentar eliminar");
                             }

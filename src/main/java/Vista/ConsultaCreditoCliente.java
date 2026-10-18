@@ -45,7 +45,7 @@ private Runnable onCerrarCallback;   // 👈 AGREGAR ESTA LÍNEA
 private double totalPagarCreditos = 0.0;
     public ConsultaCreditoCliente() {
         setTitle("Consulta Crédito Cliente");
-        setSize(900, 450);
+        setSize(1100, 450);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(null);
@@ -127,27 +127,27 @@ public ConsultaCreditoCliente(int ruc, String nombre, int idVenta, int idCliente
     txtBuscar3.setVisible(false);
 
     JLabel lblCliente = new JLabel("Cliente:");
-    lblCliente.setBounds(230, 45, 70, 25);  // Posición a la izquierda del JTextField
-    Estilos.estiloEtiqueta2(lblCliente);
-    add(lblCliente);
+lblCliente.setBounds(330, 45, 70, 25);
+Estilos.estiloEtiqueta2(lblCliente);
+add(lblCliente);
 
-    txtRuc = new JTextField();
-    txtRuc.setBounds(300, 45, 150, 25);
-    Estilos.estiloEtiqueta3(txtRuc);
-    txtRuc.setEditable(false);
-    txtRuc.setHorizontalAlignment(JTextField.CENTER);
-    add(txtRuc);
+txtRuc = new JTextField();
+txtRuc.setBounds(400, 45, 150, 25);          // <-- faltaba esto
+Estilos.estiloEtiqueta3(txtRuc);
+txtRuc.setEditable(false);
+txtRuc.setHorizontalAlignment(JTextField.CENTER);
+add(txtRuc);
 
-    txtNombre = new JTextField();
-    txtNombre.setBounds(460, 45, 350, 25);
-    Estilos.estiloEtiqueta3(txtNombre);
-    txtNombre.setEditable(false);
-    txtNombre.setHorizontalAlignment(JTextField.CENTER);
-    add(txtNombre);
+txtNombre = new JTextField();
+txtNombre.setBounds(560, 45, 350, 25);
+Estilos.estiloEtiqueta3(txtNombre);
+txtNombre.setEditable(false);
+txtNombre.setHorizontalAlignment(JTextField.CENTER);
+add(txtNombre);
 
     // --- CREAR botón PDF PRIMERO ---
     btnPDF = new JButton("PDF");
-    btnPDF.setBounds(760, 8, 80, 25); // Justo encima del txtNombre
+    btnPDF.setBounds(960, 8, 80, 25);
     btnPDF.setBackground(new Color(59, 89, 152));
     btnPDF.setForeground(Color.WHITE);
     btnPDF.setFocusPainted(false);
@@ -164,31 +164,43 @@ public ConsultaCreditoCliente(int ruc, String nombre, int idVenta, int idCliente
 
     add(btnPDF);
 
-    // --- Crear tabla Productos ---
-    modeloProductos = new DefaultTableModel();
-    tableProductos = new JTable(modeloProductos);
-    scrollProductos = new JScrollPane(tableProductos);
-    scrollProductos.setBounds(20, 85, 790, 250);
-    add(scrollProductos);
+   // --- Crear tabla Productos (UNA sola vez, con tooltip) ---
+modeloProductos = new DefaultTableModel();
+tableProductos = new JTable(modeloProductos) {
+    @Override
+    public String getToolTipText(java.awt.event.MouseEvent e) {
+        int row = rowAtPoint(e.getPoint());
+        int col = columnAtPoint(e.getPoint());
+        if (row >= 0 && col == 2) {
+            return String.valueOf(getValueAt(row, col));
+        }
+        return null;
+    }
+};
+scrollProductos = new JScrollPane(tableProductos);
+scrollProductos.setBounds(20, 85, 990, 250);
+add(scrollProductos);
 
-    modeloProductos.addColumn("ID");
-    modeloProductos.addColumn("ID Prod");
-    modeloProductos.addColumn("Nombre");
-    modeloProductos.addColumn("Cantidad");
-    modeloProductos.addColumn("Precio");
-    modeloProductos.addColumn("Total");
-    modeloProductos.addColumn("Fecha");
-    modeloProductos.addColumn("Num Ext");
-    modeloProductos.addColumn("Eliminar");
-    Estilos.estiloTablas(tableProductos);
-// Agregar botón eliminar a la columna "Eliminar"
-// Al configurar la columna "Eliminar" en tu tablaProductos dentro de ConsultaCreditoCliente:
+modeloProductos.addColumn("ID");
+modeloProductos.addColumn("ID Prod");
+modeloProductos.addColumn("Nombre");
+modeloProductos.addColumn("Cantidad");
+modeloProductos.addColumn("Precio");
+modeloProductos.addColumn("Total");
+modeloProductos.addColumn("Fecha");
+modeloProductos.addColumn("Num Ext");
+modeloProductos.addColumn("Eliminar");
+
+Estilos.estiloTablas(tableProductos);
+
+// Botón eliminar (después de los estilos)
 int columnaEliminar = modeloProductos.getColumnCount() - 1;
 tableProductos.getColumnModel().getColumn(columnaEliminar)
         .setCellRenderer(new TablaBotonEliminarProducto.ButtonRenderer());
 tableProductos.getColumnModel().getColumn(columnaEliminar)
         .setCellEditor(new TablaBotonEliminarProducto.ButtonEditor(new JCheckBox(), tableProductos, this));
-
+    
+  
     lblTotalCredito = new JLabel("Crédito Pendiente:");
     Estilos.estiloEtiqueta(lblTotalCredito);
     lblTotalCredito.setBounds(20, 350, 150, 25);
@@ -202,7 +214,7 @@ tableProductos.getColumnModel().getColumn(columnaEliminar)
     add(txtTotalCredito);
 
     btnAbonar = new JButton("Abonar");
-    btnAbonar.setBounds(430, 350, 150, 30);
+    btnAbonar.setBounds(630, 350, 150, 30);
     btnAbonar.setBackground(new Color(59, 89, 152));
     btnAbonar.setForeground(Color.WHITE);
     btnAbonar.setFocusPainted(false);
@@ -220,7 +232,7 @@ btnAbonar.setFont(new java.awt.Font("Tahoma", java.awt.Font.BOLD, 12));
     add(btnAbonar);
 
     btnCobrarCredito = new JButton("Cobrar Crédito");
-    btnCobrarCredito.setBounds(590, 350, 220, 30);
+    btnCobrarCredito.setBounds(790, 350, 220, 30);
     btnCobrarCredito.setBackground(new Color(0, 153, 76));
     btnCobrarCredito.setForeground(Color.WHITE);
     btnCobrarCredito.setFocusPainted(false);
@@ -235,6 +247,11 @@ btnAbonar.setFont(new java.awt.Font("Tahoma", java.awt.Font.BOLD, 12));
         actualizarCreditoPendiente();
     }
 private void listarProductos() {
+    // Si hay un editor activo (el botón eliminar), cancelarlo antes de vaciar la tabla
+    if (tableProductos.isEditing()) {
+        tableProductos.getCellEditor().cancelCellEditing();
+    }
+
     // Limpiar tabla antes de listar
     modeloProductos.setRowCount(0);
 
@@ -246,12 +263,12 @@ private void listarProductos() {
     int idEmpresa = Sistema.getIdEmpresaActiva(); // empresa activa
 
     String sql = 
-        "SELECT id, id_pro, nombre, cantidad, precio, total, fecha, dni " +
-        "FROM detalle_creditocliente WHERE dni = ? AND id_empresa = ? " + 
-        "UNION ALL " +
-        "SELECT id, 0 AS id_pro, 'ABONO REALIZADO' AS nombre, 1 AS cantidad, monto AS precio, monto AS total, fecha, dni " +
-        "FROM abonos_credito WHERE dni = ? AND aplicado = 0 AND id_empresa = ? " + // filtramos abonos por empresa
-        "ORDER BY fecha ASC, id ASC";
+    "SELECT id, id_pro, nombre, cantidad, precio, total, fecha, dni, '' AS nota " +
+    "FROM detalle_creditocliente WHERE dni = ? AND id_empresa = ? " + 
+    "UNION ALL " +
+    "SELECT id, 0 AS id_pro, 'ABONO REALIZADO' AS nombre, 1 AS cantidad, monto AS precio, monto AS total, fecha, dni, nota " +
+    "FROM abonos_credito WHERE dni = ? AND aplicado = 0 AND id_empresa = ? " +
+    "ORDER BY fecha ASC, id ASC";
 
     try (Connection con = Conexion.getConnection();
          PreparedStatement ps = con.prepareStatement(sql)) {
@@ -268,10 +285,17 @@ private void listarProductos() {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
             while (rs.next()) {
-                Object[] fila = new Object[8];
+                Object[] fila = new Object[9];
                 fila[0] = rs.getInt("id");
                 fila[1] = rs.getInt("id_pro");
-                fila[2] = rs.getString("nombre");
+
+                String nombreFila = rs.getString("nombre");
+                String nota = rs.getString("nota");
+                if ("ABONO REALIZADO".equals(nombreFila) && nota != null && !nota.trim().isEmpty()) {
+                    nombreFila += " - " + nota.trim();   // ABONO REALIZADO - abono domingo
+                }
+                fila[2] = nombreFila;
+
                 fila[3] = rs.getDouble("cantidad");
                 fila[4] = rs.getDouble("precio");
                 fila[5] = rs.getDouble("total");
@@ -290,7 +314,6 @@ private void listarProductos() {
         e.printStackTrace();
     }
 }
-
   private void actualizarCreditoPendiente() {
     double totalProductos = 0;
     double totalAbonos = 0;
@@ -303,11 +326,11 @@ private void listarProductos() {
             try {
                 double monto = Double.parseDouble(val.toString());
 
-                if ("ABONO REALIZADO".equalsIgnoreCase(nombre)) {
-                    totalAbonos += monto;
-                } else {
-                    totalProductos += monto;
-                }
+                if (nombre.toUpperCase().startsWith("ABONO REALIZADO")) {
+             totalAbonos += monto;
+        } else {
+        totalProductos += monto;
+        }
             } catch (NumberFormatException ignored) {}
         }
     }

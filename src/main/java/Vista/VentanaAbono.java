@@ -2,10 +2,11 @@ package Vista;
 
 import Modelo.AbonoDao;
 import javax.swing.*;
+import javax.swing.text.AbstractDocument;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.DocumentFilter;
 import java.awt.*;
-import Modelo.VentaDao;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 
 public class VentanaAbono extends JDialog {
 
@@ -19,7 +20,38 @@ public class VentanaAbono extends JDialog {
     private String dni;
     private JFrame parent;
 
-    public VentanaAbono(JFrame parent, JTable tablaCredito, JTextField txtTotalCredito, int idVenta, int idCliente, String dni) {
+    // Solo permite dígitos y un punto decimal (máximo 2 decimales)
+    private static class FiltroDecimal extends DocumentFilter {
+        private static final String REGEX = "\\d*(\\.\\d{0,2})?";
+
+        private boolean esValido(FilterBypass fb, int offset, int length, String text)
+                throws BadLocationException {
+            String actual = fb.getDocument().getText(0, fb.getDocument().getLength());
+            String nuevo = actual.substring(0, offset)
+                    + (text == null ? "" : text)
+                    + actual.substring(offset + length);
+            return nuevo.matches(REGEX);
+        }
+
+        @Override
+        public void insertString(FilterBypass fb, int offset, String str, AttributeSet attr)
+                throws BadLocationException {
+            if (str != null && esValido(fb, offset, 0, str)) {
+                super.insertString(fb, offset, str, attr);
+            }
+        }
+
+        @Override
+        public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
+                throws BadLocationException {
+            if (esValido(fb, offset, length, text)) {
+                super.replace(fb, offset, length, text, attrs);
+            }
+        }
+    }
+
+    public VentanaAbono(JFrame parent, JTable tablaCredito, JTextField txtTotalCredito,
+                        int idVenta, int idCliente, String dni) {
         super(parent, "Registrar Abono", true);
         this.parent = parent;
         this.tabla = tablaCredito;
@@ -33,11 +65,12 @@ public class VentanaAbono extends JDialog {
         setLocationRelativeTo(parent);
         getContentPane().setBackground(Color.WHITE);
 
-        JLabel lblMonto = new JLabel("Abonar:");
+        JLabel lblMonto = new JLabel("Abonar $:");
         lblMonto.setBounds(30, 30, 60, 25);
         add(lblMonto);
 
         txtMontoAbono = new JTextField();
+        ((AbstractDocument) txtMontoAbono.getDocument()).setDocumentFilter(new FiltroDecimal());
         txtMontoAbono.setBounds(100, 30, 160, 25);
         add(txtMontoAbono);
 
@@ -58,10 +91,9 @@ public class VentanaAbono extends JDialog {
 
         btnAceptar.addActionListener(e -> registrarAbono());
 
-        // Cerrar con ESC
         getRootPane().registerKeyboardAction(e -> dispose(),
-            KeyStroke.getKeyStroke("ESCAPE"),
-            JComponent.WHEN_IN_FOCUSED_WINDOW);
+                KeyStroke.getKeyStroke("ESCAPE"),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
     }
 
  private void registrarAbono() {
