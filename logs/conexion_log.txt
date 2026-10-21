@@ -1940,3 +1940,4 @@ The last packet sent successfully to the server was 0 milliseconds ago. The driv
 2026-10-21T01:31:48.734 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
 2026-10-21T01:32:03.067 - ERROR - Intento de login fallido: victorluishernandez@gmail.com | Empresa: 1 - 
 2026-10-21T01:32:08.739 - INFO - Usuario válido: victor luis hernandez | Empresa: 1
+2026-10-21T02:34:40.744 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod

@@ -106,16 +106,22 @@ public class VerificadorActualizacion {
         }
     }
 
-    private static void descargarYReemplazar(String urlDescarga, String versionRemota) {
+       private static void descargarYReemplazar(String urlDescarga, String versionRemota) {
         LoaderUpdateSystemPDV loader = new LoaderUpdateSystemPDV(null, "Descargando actualización...");
         loader.mostrar();
 
         new Thread(() -> {
             File temporal = null;
             try {
+                // Carpeta con permiso de escritura (Program Files no lo permite)
+                File carpeta = new File(System.getProperty("java.io.tmpdir"), "VHAO_PDV_Update");
+                if (!carpeta.exists() && !carpeta.mkdirs()) {
+                    throw new IOException("No se pudo crear la carpeta de descarga: " + carpeta);
+                }
+
                 String nombreArchivo = "VHAO PDV Online " + versionRemota + ".exe";
-                File destino = new File(nombreArchivo);
-                temporal = new File(nombreArchivo + ".tmp");
+                File destino = new File(carpeta, nombreArchivo);
+                temporal = new File(carpeta, nombreArchivo + ".tmp");
 
                 // Descargar primero a un archivo temporal
                 URL url = new URL(urlDescarga);
@@ -142,30 +148,28 @@ public class VerificadorActualizacion {
                     System.out.println("✅ Descarga completada (" + total / 1024 + " KB)");
                 }
 
-                // Solo ahora que la descarga salió bien, borrar versiones anteriores
-                File[] archivos = new File(".").listFiles((dir, name) ->
-                        (name.startsWith("VHAO PDV Online") || name.startsWith("VHAO.PDV-")) && name.endsWith(".exe"));
-                if (archivos != null) {
-                    for (File f : archivos) {
+                // Borrar instaladores de descargas anteriores (solo en la carpeta de descarga)
+                File[] viejos = carpeta.listFiles((dir, name) ->
+                        name.toLowerCase().endsWith(".exe") && !name.equals(nombreArchivo));
+                if (viejos != null) {
+                    for (File f : viejos) {
                         if (f.delete()) {
-                            System.out.println("🗑 Archivo antiguo eliminado: " + f.getName());
+                            System.out.println("🗑 Instalador anterior eliminado: " + f.getName());
                         }
                     }
                 }
 
                 // Renombrar el temporal al nombre final
+                if (destino.exists()) destino.delete();
                 if (!temporal.renameTo(destino)) {
                     throw new IOException("No se pudo guardar el archivo descargado.");
                 }
 
-                // Ejecutar instalador automáticamente
-                Runtime.getRuntime().exec("java -jar Updater1.jar \"" + nombreArchivo + "\"");
+                // Ejecutar el instalador (pide permisos de administrador y reabre la app al terminar)
+                new ProcessBuilder("cmd", "/c", "start", "", destino.getAbsolutePath(),
+                        "/SILENT", "/CLOSEAPPLICATIONS", "/NORESTART").start();
 
-                SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(null,
-                        "✅ Nueva versión descargada y ejecutada.\nArchivo: " + nombreArchivo,
-                        "Actualización completada", JOptionPane.INFORMATION_MESSAGE));
-
-                // Cerrar la app actual
+                // Cerrar la app actual para que el instalador pueda reemplazar los archivos
                 System.exit(0);
 
             } catch (Exception e) {
@@ -179,7 +183,6 @@ public class VerificadorActualizacion {
             }
         }).start();
     }
-
     /**
      * 🔹 Compara dos versiones tipo "1.2.3"
      * Devuelve >0 si v1 > v2, 0 si son iguales, <0 si v1 < v2

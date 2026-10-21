@@ -7,7 +7,7 @@ import javax.swing.*;
 public class ConfigApp {
 
     // 🔹 Versión de la app: súbela a mano en cada release
-    public static final String VERSION_ACTUAL = "1.5.1";
+    public static final String VERSION_ACTUAL = "1.5.4";
 
     // Carpeta de configuración en APPDATA
     private static final File CONFIG_DIR = new File(System.getenv("APPDATA"), "VHAOPDVOnline");
