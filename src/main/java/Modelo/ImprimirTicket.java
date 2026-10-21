@@ -445,8 +445,71 @@ public class ImprimirTicket {
         sb.append("¡Gracias por su compra!\n\n");
 
         return sb.toString();
+        
+        
     }
+    // =============================================
+    // TICKET ABONO A PRODUCTO
+    // =============================================
+    public static String generarTicketAbono(int idVenta, String tipoPago, double pagaCon, double cambio,
+                                            double comision, double abono, String producto,
+                                            double precioProducto, double restante, Date fechaVenta) {
+        StringBuilder sb = new StringBuilder();
+        int folio = obtenerFolio(idVenta);
 
+        try (Connection con = Conexion.getConnection()) {
+
+            String[] datosEmpresa = obtenerDatosEmpresa(con, idVenta);
+
+            sb.append("     ").append(datosEmpresa[0]).append("\n");
+            sb.append(centrarConSaltos(datosEmpresa[1], 32));
+            sb.append("Tel: ").append(datosEmpresa[2]).append("\n");
+            sb.append("------------------------------\n");
+            sb.append("Folio: ").append(folio).append("\n");
+            sb.append("Fecha: ").append(getFechaFormat().format(fechaVenta)).append("\n");
+
+            String sqlVenta = "SELECT c.nombre AS cliente " +
+                    "FROM ventas v LEFT JOIN clientes c ON v.cliente = c.id WHERE v.id = ?";
+            try (PreparedStatement ps = con.prepareStatement(sqlVenta)) {
+                ps.setInt(1, idVenta);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        String cliente = rs.getString("cliente");
+                        sb.append("Cliente: ").append(cliente != null ? cliente : "Público en general").append("\n");
+                    }
+                }
+            }
+
+            sb.append("------------------------------\n");
+            sb.append("ABONO A PRODUCTO\n");
+            sb.append(producto.length() > 30 ? producto.substring(0, 30) : producto).append("\n");
+            sb.append(String.format("%-14s $%9.2f\n", "Precio:", precioProducto));
+            sb.append(String.format("%-14s $%9.2f\n", "ESTE ABONO:", abono));
+            sb.append(String.format("%-14s $%9.2f\n", "RESTANTE:", restante));
+            sb.append("------------------------------\n");
+            sb.append("Tipo: ").append(tipoPago).append("\n");
+
+            if (comision > 0) {
+                sb.append(String.format("%-14s $%9.2f\n", "COMISION:", comision));
+            }
+            sb.append(String.format("%-14s $%9.2f\n", "TOTAL:", abono + comision));
+
+            if (tipoPago.equalsIgnoreCase("efectivo")) {
+                sb.append(String.format("%-14s $%9.2f\n", "PAGA CON:", pagaCon));
+                sb.append(String.format("%-14s $%9.2f\n", "CAMBIO:", cambio));
+            }
+
+            sb.append("------------------------------\n");
+            sb.append("¡Gracias por su compra!\n");
+            sb.append("USAMOS VHAO PUNTO DE VENTAS\n\n\n");
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            sb.append("Error al generar ticket.\n");
+        }
+
+        return sb.toString();
+    }
     // =============================================
     // UTILITY
     // =============================================
@@ -494,4 +557,6 @@ public class ImprimirTicket {
         return fechaHora;
     }
 }
+    
+ 
 }

@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.text.SimpleDateFormat;
+import Modelo.AbonoProductoDao;
 /**
  * Controlador de Historial de Ventas.
  */
@@ -140,59 +141,68 @@ public class HistorialVentasController {
         }
     }
 
-  private void reimprimir(int filaVista, Object valorIdCelda) {
-        try {
-            int idVenta = -1;
+private void reimprimir(int filaVista, Object valorIdCelda) {
+    try {
+        int idVenta = -1;
 
-            // 1. Intentamos obtener el ID enviado
-            if (valorIdCelda instanceof Integer) {
-                idVenta = (Integer) valorIdCelda;
-            } else if (valorIdCelda != null && !valorIdCelda.toString().equals("Reimprimir")) {
-                idVenta = Integer.parseInt(valorIdCelda.toString().trim());
+        // 1. Intentamos obtener el ID enviado
+        if (valorIdCelda instanceof Integer) {
+            idVenta = (Integer) valorIdCelda;
+        } else if (valorIdCelda != null && !valorIdCelda.toString().equals("Reimprimir")) {
+            idVenta = Integer.parseInt(valorIdCelda.toString().trim());
+        }
+
+        // 2. Leemos la fila del modelo
+        int filaModelo = panel.getTableVentas().convertRowIndexToModel(filaVista);
+        DefaultTableModel modelo = panel.getModelo();
+
+        // Intentamos buscar la venta primero por ID
+        Venta venta = null;
+        if (idVenta > 0) {
+            venta = ventaDao.BuscarVenta(idVenta);
+        }
+
+        // 3. Si no se encontró por ID, leemos la Columna 0 (que normalmente almacena el Folio)
+        if (venta == null) {
+            Object valCol0 = modelo.getValueAt(filaModelo, 0);
+            if (valCol0 != null) {
+                int folio = Integer.parseInt(valCol0.toString().trim());
+                // Buscamos por Folio e ID de Empresa
+                venta = ventaDao.BuscarVentaPorFolio(folio, idEmpresa);
             }
+        }
 
-            // 2. Leemos la fila del modelo
-            int filaModelo = panel.getTableVentas().convertRowIndexToModel(filaVista);
-            DefaultTableModel modelo = panel.getModelo();
+        // 4. Si aún es null, mostramos un aviso detallado
+        if (venta == null) {
+            JOptionPane.showMessageDialog(panel,
+                "No se pudo recuperar la venta.\n" +
+                "Verifica si BuscarVenta o BuscarVentaPorFolio corresponden con la BD.",
+                "Venta no encontrada", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
-            // Intentamos buscar la venta primero por ID
-            Venta venta = null;
-            if (idVenta > 0) {
-                venta = ventaDao.BuscarVenta(idVenta);
-            }
+        // Obtener el ID correcto de la venta recuperada
+        idVenta = venta.getId();
 
-            // 3. Si no se encontró por ID, leemos la Columna 0 (que normalmente almacena el Folio)
-            if (venta == null) {
-                Object valCol0 = modelo.getValueAt(filaModelo, 0);
-                if (valCol0 != null) {
-                    int folio = Integer.parseInt(valCol0.toString().trim());
-                    // Buscamos por Folio e ID de Empresa
-                    venta = ventaDao.BuscarVentaPorFolio(folio, idEmpresa);
-                }
-            }
+        String tipoPago = venta.getTipopago() != null ? venta.getTipopago() : "Efectivo";
+        String ticket;
 
-            // 4. Si aún es null, mostramos un aviso detallado
-            if (venta == null) {
-                JOptionPane.showMessageDialog(panel, 
-                    "No se pudo recuperar la venta.\n" +
-                    "Verifica si BuscarVenta o BuscarVentaPorFolio corresponden con la BD.",
-                    "Venta no encontrada", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
+        // ¿El folio es un abono (a producto o a categoría)?
+        AbonoProductoDao.InfoAbono info = new AbonoProductoDao().obtenerInfoAbono(idVenta);
 
-            // Obtener el ID correcto de la venta recuperada
-            idVenta = venta.getId();
-
-            String tipoPago = venta.getTipopago() != null ? venta.getTipopago() : "Efectivo";
-            String ticket;
-
+        if (info != null) {
+            ticket = ImprimirTicket.generarTicketAbono(
+                    idVenta, tipoPago, venta.getPagaCon(), venta.getCambio(),
+                    venta.getComision(), info.monto, info.concepto, info.precio, info.restante,
+                    parsearFechaVenta(venta.getFechaHora()));
+        } else {
             switch (tipoPago.toLowerCase()) {
                 case "tarjeta":
-case "mixto":
-    double subtotal = venta.getSubtotal();
-    double comision = venta.getComision();
-    ticket = ImprimirTicket.generarTicketTarjeta(idVenta, comision, tipoPago, subtotal, parsearFechaVenta(venta.getFechaHora()));
-    break;
+                case "mixto":
+                    double subtotal = venta.getSubtotal();
+                    double comision = venta.getComision();
+                    ticket = ImprimirTicket.generarTicketTarjeta(idVenta, comision, tipoPago, subtotal, parsearFechaVenta(venta.getFechaHora()));
+                    break;
 
                 case "credito":
                     List<Object[]> detalleCredito = ventaDao.listarDetalleCreditoPorVenta(idVenta);
@@ -212,32 +222,32 @@ case "mixto":
                     }
 
                     ticket = ImprimirTicket.generarTicketCredito(
-        idVenta, 
-        venta.getTotal(), 
-        tipoPago, 
-        listaProductosCredito,
-        new ArrayList<>(),
-        venta.getPagaCon(), 
-        venta.getCambio(), 
-        venta.getNombre_cli(),
-        parsearFechaVenta(venta.getFechaHora())
-);
+                            idVenta,
+                            venta.getTotal(),
+                            tipoPago,
+                            listaProductosCredito,
+                            new ArrayList<>(),
+                            venta.getPagaCon(),
+                            venta.getCambio(),
+                            venta.getNombre_cli(),
+                            parsearFechaVenta(venta.getFechaHora()));
                     break;
 
                 default: // Efectivo
-    ticket = ImprimirTicket.generarTicketEfectivo(
-            idVenta, venta.getPagaCon(), venta.getCambio(), tipoPago, parsearFechaVenta(venta.getFechaHora()));
-    break;
+                    ticket = ImprimirTicket.generarTicketEfectivo(
+                            idVenta, venta.getPagaCon(), venta.getCambio(), tipoPago, parsearFechaVenta(venta.getFechaHora()));
+                    break;
             }
-
-            ImprimirTicket.imprimir(ticket);
-            mostrarVistaPrevia(ticket);
-
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(panel, "Error al reimprimir: " + ex.getMessage());
-            ex.printStackTrace();
         }
+
+        ImprimirTicket.imprimir(ticket);
+        mostrarVistaPrevia(ticket);
+
+    } catch (Exception ex) {
+        JOptionPane.showMessageDialog(panel, "Error al reimprimir: " + ex.getMessage());
+        ex.printStackTrace();
     }
+}
     private void mostrarVistaPrevia(String ticket) {
         JTextArea area = new JTextArea(ticket);
         area.setEditable(false);

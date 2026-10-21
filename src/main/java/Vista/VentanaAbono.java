@@ -52,7 +52,7 @@ public class VentanaAbono extends JDialog {
 
     public VentanaAbono(JFrame parent, JTable tablaCredito, JTextField txtTotalCredito,
                         int idVenta, int idCliente, String dni) {
-        super(parent, "Registrar Abono", true);
+        super(parent, "Registrar Abono a capital", true);
         this.parent = parent;
         this.tabla = tablaCredito;
         this.txtTotalCredito = txtTotalCredito;

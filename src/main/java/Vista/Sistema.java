@@ -76,6 +76,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Arrays;
+import Controlador.InfoEmpresa;
 
 
 /**
@@ -141,6 +142,7 @@ public final class Sistema extends javax.swing.JFrame {
     // campos de la clase
 private boolean aplicandoPromos = false;
 private List<Promocion> promosVigentes = new ArrayList<>();
+private InfoEmpresa infoEmpresa;
 
 public static void setUsuarioActivo(String usuario) {
     usuarioActivo = usuario;
@@ -394,12 +396,12 @@ jPanel17.repaint();
             System.out.println("DEBUG: jPanelConfig no encontrado en Menu");
         }
     });
-
-    // -------------------------
-    // 🔹 Listar configuración básica
-    // -------------------------
-    ListarConfig();
-
+    
+    
+    // nuevo llama info empresa
+    infoEmpresa = new InfoEmpresa(txtIdConfig, txtRucConfig, txtNombreConfig,
+        txtTelefonoConfig, txtDireccionConfig, txtMensaje,
+        () -> usuarioLogueado != null ? usuarioLogueado.getIdEmpresa() : 0);
     // -------------------------
     // 🔹 Estilos de botones laterales (incluye el nuevo)
     // -------------------------
@@ -764,28 +766,8 @@ public Controlador.CreditoClienteController getCreditoClienteController() {
 
     
 public void ListarConfig() {
-    // Validar que el usuario logueado exista para evitar NullPointerException
-    if (usuarioLogueado == null) {
-        System.out.println("DEBUG: usuarioLogueado es null al intentar listar la configuración.");
-        return;
-    }
-
-    EmpresaDao empresaDao = new EmpresaDao();
-    int idEmpresa = usuarioLogueado.getIdEmpresa(); 
-    Empresa empresa = empresaDao.BuscarDatos(idEmpresa); 
-    
-    if (empresa != null) {
-        if (txtIdConfig != null) txtIdConfig.setText("" + empresa.getId_empresa());
-        if (txtRucConfig != null) txtRucConfig.setText(empresa.getRuc() != null ? empresa.getRuc() : "");
-        if (txtNombreConfig != null) txtNombreConfig.setText(empresa.getNombre() != null ? empresa.getNombre() : "");
-        if (txtTelefonoConfig != null) txtTelefonoConfig.setText(empresa.getTelefono() != null ? empresa.getTelefono() : "");
-        if (txtDireccionConfig != null) txtDireccionConfig.setText(empresa.getDireccion() != null ? empresa.getDireccion() : "");
-        if (txtMensaje != null) txtMensaje.setText(empresa.getMensaje() != null ? empresa.getMensaje() : "");
-    } else {
-        JOptionPane.showMessageDialog(null, "No se encontró la empresa con ID " + idEmpresa);
-    }
+    infoEmpresa.cargar();
 }
-
 
 
     public void LimpiarTable() {
@@ -2738,13 +2720,12 @@ public void ListarConfig() {
     }//GEN-LAST:event_btnNuevaVentaActionPerformed
 
     private void btnConfigActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnConfigActionPerformed
-        // TODO add your handling code here:
-        
-          if (usuarioLogueado.getRol().equals("Administrador") || corteValidado
-        || rolController.solicitarClaveAdministrador()) {
-        corteValidado = true; // marcar como validado
-       Menu.setSelectedIndex(5); // abrir pestaña de config
-    }
+        if (usuarioLogueado.getRol().equals("Administrador") || corteValidado
+            || rolController.solicitarClaveAdministrador()) {
+        corteValidado = true;
+        infoEmpresa.cargar();
+        Menu.setSelectedIndex(5);
+    }  
     }//GEN-LAST:event_btnConfigActionPerformed
 
     private void btnVentasActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnVentasActionPerformed
@@ -2812,33 +2793,8 @@ lg.setIdEmpresa(Sistema.getIdEmpresaActiva());
     }//GEN-LAST:event_txtCorreoActionPerformed
 
     private void btnActualizarConfigActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnActualizarConfigActionPerformed
-        // TODO add your handling code here:
-       // Validar que los campos no estén vacíos
-    if (!txtRucConfig.getText().trim().isEmpty() &&
-        !txtNombreConfig.getText().trim().isEmpty() &&
-        !txtTelefonoConfig.getText().trim().isEmpty() &&
-        !txtDireccionConfig.getText().trim().isEmpty()) {
-        
-        // Crear objeto Empresa y setear valores
-        Empresa empresa = new Empresa();
-        empresa.setRuc(txtRucConfig.getText().trim());
-        empresa.setNombre(txtNombreConfig.getText().trim());
-        empresa.setTelefono(txtTelefonoConfig.getText().trim());
-        empresa.setDireccion(txtDireccionConfig.getText().trim());
-        empresa.setMensaje(txtMensaje.getText().trim());
-        empresa.setId_empresa(Integer.parseInt(txtIdConfig.getText().trim())); // ID de la empresa
-        
-        // Llamar a DAO para actualizar
-        if (empDao.ModificarDatos(empresa)) {
-            JOptionPane.showMessageDialog(null, "Datos de la empresa modificados correctamente");
-            ListarConfig(); // refrescar datos
-        } else {
-            JOptionPane.showMessageDialog(null, "Error al modificar los datos de la empresa");
-        }
-        
-    } else {
-        JOptionPane.showMessageDialog(null, "Los campos están vacíos");
-    }
+       infoEmpresa.actualizar();
+
     }//GEN-LAST:event_btnActualizarConfigActionPerformed
 
 //pdf de tabla filas

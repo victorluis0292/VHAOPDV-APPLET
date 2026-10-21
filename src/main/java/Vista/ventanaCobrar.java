@@ -3,12 +3,14 @@ package Vista;
 import Controlador.TurnoController;
 import Estilos.Estilos;
 import Modelo.AbonoDao;
+import Modelo.AbonoProductoDao;
 import Modelo.AbrirCajaEfectivo;
 import Modelo.Detalle;
 import Modelo.Eventos;
 import Modelo.ImprimirTicket;
 import Modelo.LoaderDialog;
 import Modelo.TurnoModel;
+import Modelo.Venta;
 import Modelo.VentaDao;
 import Servicios.CobroService;
 import static Vista.Sistema.txtCodigoVenta;
@@ -22,10 +24,11 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Date;
+
 public final class ventanaCobrar extends JDialog {
     // Creamos la fecha forzada a la zona horaria del Centro de México (GMT-6)
-java.util.Calendar cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("GMT-6"));
-Date fechaLocal = cal.getTime();
+    java.util.Calendar cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("GMT-6"));
+    Date fechaLocal = cal.getTime();
 
     private int idEmpresaActiva;
     private String dniCliente;
@@ -38,6 +41,7 @@ Date fechaLocal = cal.getTime();
     private double totalComision = 0.00;
     private double ultimoPagoEfectivo = 0.00;
 
+    private JLabel lblTextoTotal = new JLabel("Total a Pagar:");
     private JLabel lblTotal = new JLabel("0.00");
     private JTextField txtPaga = new JTextField();
     private JLabel lblCambio = new JLabel("0.00");
@@ -48,6 +52,49 @@ Date fechaLocal = cal.getTime();
     private boolean esVentaCredito = false;
     private ConsultaCreditoCliente ventanaPadreConsulta;
 
+    // ---------- MODO ABONO A PRODUCTO ----------
+    private boolean modoAbono = false;
+    private int abonoIdDetalle;
+    private String abonoNota = "";
+    private Runnable abonoAlTerminar;
+    private String abonoProducto = "";
+    private double abonoPrecioProducto = 0.0;
+    private double abonoAbonadoAntes = 0.0;
+    private List<double[]> abonoPartes = null;   // cada elemento: {idDetalle, monto}; null = abono a un solo producto
+
+    /**
+     * Activa el modo "cobro de abono". En este modo el cobro registra una venta
+     * por el monto abonado y guarda el abono ligado a esa venta y a su producto.
+     */
+    public void configurarAbono(String producto, String dni, int idEmpresa,
+                                int idDetalle, String nota, Runnable alTerminar) {
+        this.modoAbono = true;
+        this.dniCliente = dni;
+        this.idEmpresaActiva = idEmpresa;
+        this.abonoIdDetalle = idDetalle;
+        this.abonoNota = (nota == null) ? "" : nota;
+        this.abonoAlTerminar = alTerminar;
+        this.abonoProducto = producto;
+        setTitle("Cobro de abono - " + producto);
+        lblTextoTotal.setText("Abono a cobrar:");
+    }
+    public void configurarAbonoCategoria(String categoria, String dni, int idEmpresa,
+                                     List<double[]> partes, String nota, Runnable alTerminar) {
+    this.modoAbono = true;
+    this.dniCliente = dni;
+    this.idEmpresaActiva = idEmpresa;
+    this.abonoPartes = partes;
+    this.abonoIdDetalle = 0;
+    this.abonoNota = (nota == null) ? "" : nota;
+    this.abonoAlTerminar = alTerminar;
+    this.abonoProducto = "Categoría " + categoria;
+    setTitle("Cobro de abono - Categoría " + categoria);
+    lblTextoTotal.setText("Abono a cobrar:");
+}
+    public void setDetalleAbonoTicket(double precioProducto, double abonadoAntes) {
+        this.abonoPrecioProducto = precioProducto;
+        this.abonoAbonadoAntes = abonadoAntes;
+    }
     // Constructor para ventas normales (efectivo/tarjeta/mixto)
     public ventanaCobrar(JFrame parent) {
         super(parent, "Pago", true); // modal
@@ -92,7 +139,7 @@ Date fechaLocal = cal.getTime();
         Estilos.PanelConEstilo panel = new Estilos.PanelConEstilo();
         panel.setLayout(new GridLayout(5, 2, 10, 10));
 
-        panel.add(new JLabel("Total a Pagar:"));
+        panel.add(lblTextoTotal);
         lblTotal.setFont(new Font("Arial", Font.BOLD, 24));
         panel.add(lblTotal);
 
@@ -245,6 +292,12 @@ Date fechaLocal = cal.getTime();
     }
 
     private void procesarVentaFinal() {
+        // Cobro de un abono a producto: flujo propio
+        if (modoAbono) {
+            procesarAbono();
+            return;
+        }
+
         System.out.println("👉 procesarVentaFinal llamado");
         JDialog loader = new LoaderDialog().mostrarLoader(this);
 
@@ -262,7 +315,7 @@ Date fechaLocal = cal.getTime();
         final double cambioUI = cambioTemporal;
 
         // Extraer productos a crédito de la UI una sola vez para no tocar JTable desde doInBackground
-       final List<String[]> listaProductosCredito = new ArrayList<>();
+        final List<String[]> listaProductosCredito = new ArrayList<>();
         final List<String[]> listaAbonosCredito = new ArrayList<>();
         if (esVentaCredito && TableConsultaCreditCliente != null) {
             DefaultTableModel modelo = (DefaultTableModel) TableConsultaCreditCliente.getModel();
@@ -336,25 +389,25 @@ Date fechaLocal = cal.getTime();
                         new AbonoDao().actualizarAbonosAplicados(dni, idVenta);
                     }
 
-                   if (tipoPagoFinal.equalsIgnoreCase("tarjeta")) {
-        ticketGenerado = ImprimirTicket.generarTicketCreditoConTarjeta(idVenta, nombreCliente, subtotal, totalComision, totalPagar, listaProductosCredito, listaAbonosCredito, fechaLocal);
-    } else if (tipoPagoFinal.equalsIgnoreCase("mixto")) {
-        ticketGenerado = ImprimirTicket.generarTicketCreditoMixto(idVenta, nombreCliente, subtotal, totalComision, totalPagar, listaProductosCredito, listaAbonosCredito, fechaLocal);
-    } else {
-        double cambioCredito = Math.max(0, ultimoPagoEfectivo - totalPagar);
-        ticketGenerado = ImprimirTicket.generarTicketCredito(idVenta, totalPagar, tipoPagoFinal, listaProductosCredito, listaAbonosCredito, ultimoPagoEfectivo, cambioCredito, nombreCliente, fechaLocal);
-    }
-} else {
-    switch (tipoPagoFinal.toLowerCase()) {
-        case "efectivo":
-            double cambioEfectivo = Math.max(0, ultimoPagoEfectivo - totalPagar);
-            ticketGenerado = ImprimirTicket.generarTicketEfectivo(idVenta, ultimoPagoEfectivo, cambioEfectivo, tipoPagoFinal, fechaLocal);
-            break;
-        default:
-            ticketGenerado = ImprimirTicket.generarTicketTarjeta(idVenta, totalComision, tipoPagoFinal, subtotal, fechaLocal);
-            break;
-    }
-}
+                    if (tipoPagoFinal.equalsIgnoreCase("tarjeta")) {
+                        ticketGenerado = ImprimirTicket.generarTicketCreditoConTarjeta(idVenta, nombreCliente, subtotal, totalComision, totalPagar, listaProductosCredito, listaAbonosCredito, fechaLocal);
+                    } else if (tipoPagoFinal.equalsIgnoreCase("mixto")) {
+                        ticketGenerado = ImprimirTicket.generarTicketCreditoMixto(idVenta, nombreCliente, subtotal, totalComision, totalPagar, listaProductosCredito, listaAbonosCredito, fechaLocal);
+                    } else {
+                        double cambioCredito = Math.max(0, ultimoPagoEfectivo - totalPagar);
+                        ticketGenerado = ImprimirTicket.generarTicketCredito(idVenta, totalPagar, tipoPagoFinal, listaProductosCredito, listaAbonosCredito, ultimoPagoEfectivo, cambioCredito, nombreCliente, fechaLocal);
+                    }
+                } else {
+                    switch (tipoPagoFinal.toLowerCase()) {
+                        case "efectivo":
+                            double cambioEfectivo = Math.max(0, ultimoPagoEfectivo - totalPagar);
+                            ticketGenerado = ImprimirTicket.generarTicketEfectivo(idVenta, ultimoPagoEfectivo, cambioEfectivo, tipoPagoFinal, fechaLocal);
+                            break;
+                        default:
+                            ticketGenerado = ImprimirTicket.generarTicketTarjeta(idVenta, totalComision, tipoPagoFinal, subtotal, fechaLocal);
+                            break;
+                    }
+                }
 
                 return ticketGenerado;
             }
@@ -393,6 +446,110 @@ Date fechaLocal = cal.getTime();
                         JOptionPane.showMessageDialog(ventanaCobrar.this, "No hay un turno abierto.", "Atención", JOptionPane.WARNING_MESSAGE);
                     } else {
                         JOptionPane.showMessageDialog(ventanaCobrar.this, "Error al procesar la venta: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                    e.printStackTrace();
+                }
+            }
+        };
+        worker.execute();
+    }
+
+    /**
+     * Cobro de un abono a un producto: crea la venta del día por el monto abonado
+     * y guarda el abono ligado a esa venta y al producto.
+     */
+    private void procesarAbono() {
+        System.out.println("👉 procesarAbono llamado");
+        JDialog loader = new LoaderDialog().mostrarLoader(this);
+
+        // Datos de la UI, leídos en el hilo principal
+        final String vendedorUI = Sistema.LabelVendedor.getText();
+
+        double cambioTemporal = 0.0;
+        try {
+            cambioTemporal = Double.parseDouble(lblCambio.getText());
+        } catch (NumberFormatException ex) {
+            cambioTemporal = 0.0;
+        }
+        final double cambioUI = cambioTemporal;
+
+        SwingWorker<String, Void> worker = new SwingWorker<String, Void>() {
+            @Override
+            protected String doInBackground() throws Exception {
+                TurnoModel turno = TurnoController.getTurnoGlobal();
+                if (turno == null) {
+                    throw new Exception("No_Turno");
+                }
+
+                VentaDao ventaDao = new VentaDao();
+                int dni = Integer.parseInt(dniCliente);
+                int idCliente = ventaDao.obtenerIdClientePorDniEmpresa(dni, idEmpresaActiva);
+                if (idCliente <= 0) {
+                    throw new Exception("Cliente no encontrado.");
+                }
+
+                String tipoPagoFinal = determinarTipoPagoFinal();   // Efectivo / Tarjeta / Mixto
+                double subtotal = totalPagar - totalComision;       // lo que baja la deuda
+
+                // 1) Venta del día por el abono
+                String fecha = new java.text.SimpleDateFormat("dd/MM/yyyy").format(new Date());
+                Venta venta = new Venta();
+                venta.setCliente(idCliente);
+                venta.setVendedor(vendedorUI);
+                venta.setTotal(totalPagar);
+                venta.setFecha(fecha);
+                venta.setTipopago(tipoPagoFinal);
+                venta.setIdTurno(turno.getId());
+                venta.setPagaCon(ultimoPagoEfectivo);
+                venta.setCambio(cambioUI);
+                venta.setComision(totalComision);
+                venta.setSubtotal(subtotal);
+
+                int idVenta = ventaDao.RegistrarVenta(venta);
+                if (idVenta == 0) {
+                    throw new Exception("No se pudo registrar la venta del abono.");
+                }
+
+                // 2) Abono(s) ligado(s) a esa venta y a su producto
+                AbonoProductoDao abonoDao = new AbonoProductoDao();
+                boolean ok;
+                if (abonoPartes == null) {
+                    ok = abonoDao.registrar(idVenta, subtotal, abonoNota, dni, idEmpresaActiva, abonoIdDetalle);
+                } else {
+                    ok = abonoDao.registrarVarios(idVenta, abonoPartes, abonoNota, dni, idEmpresaActiva);
+                }
+                if (!ok) {
+                    abonoDao.eliminarVenta(idVenta);
+                    throw new Exception("No se pudo guardar el abono. La venta se canceló.");
+                }
+
+                // 3) Ticket de abono
+                double restante = Math.max(0, abonoPrecioProducto - abonoAbonadoAntes - subtotal);
+                return ImprimirTicket.generarTicketAbono(idVenta, tipoPagoFinal, ultimoPagoEfectivo, cambioUI,
+                        totalComision, subtotal, abonoProducto, abonoPrecioProducto, restante, fechaLocal);   }
+
+            @Override
+            protected void done() {
+                loader.dispose();
+                try {
+                    String ticket = get();
+                    if (ticket != null && !ticket.isEmpty()) {
+                        if (!ticket.toLowerCase().contains("tarjeta")) {
+                            AbrirCajaEfectivo.main(null);
+                        }
+                        ImprimirTicket.imprimir(ticket);
+                        mostrarTicketDialogSoloInformativo(ticket);
+                    }
+                    cobroRealizado = true;
+                    dispose();
+                    if (abonoAlTerminar != null) {
+                        abonoAlTerminar.run();
+                    }
+                } catch (Exception e) {
+                    if (e.getMessage() != null && e.getMessage().contains("No_Turno")) {
+                        JOptionPane.showMessageDialog(ventanaCobrar.this, "No hay un turno abierto.", "Atención", JOptionPane.WARNING_MESSAGE);
+                    } else {
+                        JOptionPane.showMessageDialog(ventanaCobrar.this, "Error al procesar el abono: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
                     }
                     e.printStackTrace();
                 }
