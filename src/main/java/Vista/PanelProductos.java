@@ -52,6 +52,7 @@ public class PanelProductos extends JPanel {
     public JTable TableProducto;
     public DefaultTableModel modelo;
     public JButton btnPromociones;
+    public JButton btnGenerarCodigoBarras;
 
     private ButtonGroup grupoTipoVenta;
     private final CategoriaDao categoriaDao = new CategoriaDao();
@@ -170,7 +171,7 @@ public class PanelProductos extends JPanel {
         tituloFormulario.setForeground(new Color(0, 102, 204));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(3, 5, 3, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
 
@@ -311,9 +312,23 @@ public class PanelProductos extends JPanel {
 
         gbc.gridy = fila;
         gbc.weighty = 1.0;
-        contenidoFormulario.add(Box.createVerticalGlue(), gbc);
+        //////////////////////////////////////////////////////////////////////7
+        btnGenerarCodigoBarras = new JButton("Generador de código de barras");
+        btnGenerarCodigoBarras.setPreferredSize(new Dimension(0, 34));
+        Estilos.estiloBotonAzul(btnGenerarCodigoBarras);
+        btnGenerarCodigoBarras.setEnabled(false);
 
-        panelFormulario.add(contenidoFormulario, BorderLayout.CENTER);
+        gbc.gridy = fila++;
+        gbc.insets = new Insets(0, 5, 5, 5);
+        contenidoFormulario.add(btnGenerarCodigoBarras, gbc);
+
+        JScrollPane scrollFormulario = new JScrollPane(contenidoFormulario);
+        scrollFormulario.setBorder(null);
+        scrollFormulario.setOpaque(false);
+        scrollFormulario.getViewport().setOpaque(false);
+        scrollFormulario.getVerticalScrollBar().setUnitIncrement(16);
+        scrollFormulario.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        panelFormulario.add(scrollFormulario, BorderLayout.CENTER);
 
         // --- Tabla ---
         Estilos.PanelConEstilo panelTabla = new Estilos.PanelConEstilo();
@@ -530,6 +545,7 @@ public class PanelProductos extends JPanel {
 
         btnEditarpro.setEnabled(true);
         btnGuardarpro.setEnabled(false);
+        btnGenerarCodigoBarras.setEnabled(true);
     }
 
     private String valorTabla(int fila, int columna) {
@@ -615,7 +631,7 @@ public class PanelProductos extends JPanel {
                 ob[1] = producto.getCodigo();
                 ob[2] = producto.getNombre();
                 ob[3] = producto.getCategoria();
-                ob[4] = producto.getProveedor();
+                ob[4] = producto.getProveedorPro();
                 ob[5] = producto.getStock();
                 ob[6] = producto.getPrecio();
                 ob[7] = producto.getPreciocompra();
@@ -1112,7 +1128,19 @@ public class PanelProductos extends JPanel {
                 JOptionPane.showMessageDialog(this, "Hay campos obligatorios vacíos.", "Advertencia", JOptionPane.WARNING_MESSAGE);
             }
         });
-
+         //--boton generador codigo de barras --
+         btnGenerarCodigoBarras.addActionListener(e -> {
+    if (txtIdproducto.getText().trim().isEmpty()) {
+        JOptionPane.showMessageDialog(this, "Seleccione un producto de la tabla primero.");
+        return;
+    }
+    new DialogoCodigoBarras(
+            (Frame) SwingUtilities.getWindowAncestor(this),
+            txtDesPro.getText().trim(),
+            txtCodigoPro.getText().trim(),
+            txtPrecioPro.getText().trim()
+    ).setVisible(true);
+});
         // --- Proveedor ---
         cbxProveedorPro.addActionListener(e -> {
             if (ignorarEventoProveedor) return;
@@ -1167,6 +1195,7 @@ public class PanelProductos extends JPanel {
         TableProducto.clearSelection();
         btnGuardarpro.setEnabled(true);
         btnEditarpro.setEnabled(false);
+        btnGenerarCodigoBarras.setEnabled(false);
     }
 
     // ============================================================

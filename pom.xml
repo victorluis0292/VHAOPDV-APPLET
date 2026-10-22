@@ -26,12 +26,19 @@
         </repository>
     </repositories>
     <dependencies>
-        <!-- ✅ Conector MySQL corregido (nuevo grupo y artefacto) -->
+        <!-- ? Conector MySQL corregido (nuevo grupo y artefacto) -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
             <version>8.0.33</version>
         </dependency>
+        
+          <!-- ? ibrer�a ZXing  -->
+         <dependency>
+    <groupId>com.google.zxing</groupId>
+    <artifactId>core</artifactId>
+    <version>3.5.3</version>
+</dependency>
 <dependency>
     <groupId>com.fazecast</groupId>
     <artifactId>jSerialComm</artifactId>
@@ -114,7 +121,7 @@
                 <version>3.8.1</version>
             </plugin>
 
-            <!-- ✅ Plugin para ejecutar el proyecto -->
+            <!-- ? Plugin para ejecutar el proyecto -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>

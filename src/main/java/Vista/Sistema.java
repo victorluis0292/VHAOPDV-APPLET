@@ -143,6 +143,8 @@ public final class Sistema extends javax.swing.JFrame {
 private boolean aplicandoPromos = false;
 private List<Promocion> promosVigentes = new ArrayList<>();
 private InfoEmpresa infoEmpresa;
+private boolean ajusteActivado = false;
+
 
 public static void setUsuarioActivo(String usuario) {
     usuarioActivo = usuario;
@@ -567,7 +569,8 @@ for (int i = 0; i < jPanelMenuCorte.getComponentCount(); i++) {
     Menu.getComponentAt(0).setBackground(Color.WHITE);
 
     txtCodigoVenta.requestFocus();
-    this.setLocationRelativeTo(null);
+    //
+    setExtendedState(javax.swing.JFrame.MAXIMIZED_BOTH);
 
     // Inicializar fechas en JDateChooser
     Midate.setDate(fechaVenta);
@@ -639,7 +642,7 @@ for (int i = 0; i < jPanelMenuCorte.getComponentCount(); i++) {
 // 🔹 CARGAR DATOS EN EL PANEL DE VERDULERÍA YA EXISTENTE (`panelVerduleria`)
 refrescarPanelVerduleria();
 cargarPromosVigentes();
-  
+activarAjusteAutomatico();  
 } 
 private void refrescarPanelVerduleria() {
     try {
@@ -708,8 +711,54 @@ public Controlador.CreditoClienteController getCreditoClienteController() {
     TableVenta.setModel(modelo3);
     }
     
- 
+ private void activarAjusteAutomatico() {
+    if (ajusteActivado) return;          // evita duplicar listeners si se llama otra vez
+    ajusteActivado = true;
 
+    final java.awt.Container cp = getContentPane();
+    final java.util.Map<java.awt.Component, java.awt.Rectangle> originales = new java.util.HashMap<>();
+    int maxX = 0, maxY = 0;
+
+    for (java.awt.Component c : cp.getComponents()) {
+        java.awt.Rectangle r = c.getBounds();
+        originales.put(c, r);
+        maxX = Math.max(maxX, r.x + r.width);
+        maxY = Math.max(maxY, r.y + r.height);
+    }
+    final int baseW = maxX;
+    final int baseH = maxY;
+
+    final Runnable ajustar = () -> {
+        int dw = Math.max(0, cp.getWidth() - baseW);
+        int dh = Math.max(0, cp.getHeight() - baseH);
+
+        for (java.awt.Component c : cp.getComponents()) {
+            java.awt.Rectangle r = originales.get(c);
+            if (r == null) continue;
+
+            boolean pegadoIzquierda = r.x == 0 && r.width < 300;   // menú lateral
+            boolean franjaSuperior = r.height < 200;                // encabezado
+
+            if (pegadoIzquierda) {
+                c.setBounds(r.x, r.y, r.width, r.height + dh);               // crece a lo alto
+            } else if (franjaSuperior) {
+                c.setBounds(r.x, r.y, r.width + dw, r.height);               // crece a lo ancho
+            } else {
+                c.setBounds(r.x, r.y, r.width + dw, r.height + dh);          // contenido: ancho y alto
+            }
+        }
+        cp.revalidate();
+        cp.repaint();
+    };
+
+    cp.addComponentListener(new java.awt.event.ComponentAdapter() {
+        @Override
+        public void componentResized(java.awt.event.ComponentEvent e) {
+            ajustar.run();
+        }
+    });
+    ajustar.run();
+}
   public void ListarCliente(int idEmpresa) {
     List<Cliente> ListarCl = client.ListarCliente(idEmpresa); // ahora recibe idEmpresa
     modelo = (DefaultTableModel) TableCliente.getModel();
@@ -2818,22 +2867,7 @@ lg.setIdEmpresa(Sistema.getIdEmpresaActiva());
     }//GEN-LAST:event_btnNuevoProActionPerformed
 
     private void btnEliminarProActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarProActionPerformed
-        /* / TODO add your handling code here:
-        if (!"".equals(txtIdproducto.getText())) {
-            int pregunta = JOptionPane.showConfirmDialog(null, "Esta seguro de eliminar");
-            if (pregunta == 0) {
-                int id = Integer.parseInt(txtIdproducto.getText());
-                proDao.EliminarProductos(id);
-                LimpiarTable();
-                LimpiarProductos();
-                ListarProductos();
-                btnEditarpro.setEnabled(false);
-                btnEliminarPro.setEnabled(false);
-                btnGuardarpro.setEnabled(true);
-            }
-        }else{
-            JOptionPane.showMessageDialog(null, "Selecciona una fila");
-        } */
+     
     }//GEN-LAST:event_btnEliminarProActionPerformed
 
     private void btnEditarproActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEditarproActionPerformed
@@ -2842,62 +2876,7 @@ lg.setIdEmpresa(Sistema.getIdEmpresaActiva());
     }//GEN-LAST:event_btnEditarproActionPerformed
 
     private void btnGuardarproActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGuardarproActionPerformed
-         /*/ Validar que ningún campo esté vacío o lleno de espacios
-    if (!txtCodigoPro.getText().trim().isEmpty() &&
-        !txtDesPro.getText().trim().isEmpty() &&
-        !txtCantPro.getText().trim().isEmpty() &&
-        !txtPrecioPro.getText().trim().isEmpty() &&
-        !txtPreciocompraPro.getText().trim().isEmpty()) {
-
-        // Validar que se haya seleccionado un proveedor válido
-        Combo itemP = (Combo) cbxProveedorPro.getSelectedItem();
-        if (itemP == null || itemP.getId() == 0) {
-            JOptionPane.showMessageDialog(null, "Debe seleccionar un proveedor válido.");
-            return;
-        }
-
-        try {
-            // Validar que los valores numéricos realmente lo sean
-            int cantidad = Integer.parseInt(txtCantPro.getText().trim());
-            double precio = Double.parseDouble(txtPrecioPro.getText().trim());
-            double precioCompra = Double.parseDouble(txtPreciocompraPro.getText().trim());
-
-            // Asignar datos al objeto Productos
-            pro.setCodigo(txtCodigoPro.getText().trim());
-            pro.setNombre(txtDesPro.getText().trim());
-            pro.setProveedor(itemP.getId());
-            pro.setStock(cantidad);
-            pro.setPrecio(precio);
-            pro.setPreciocompra(precioCompra);
-            pro.setId_empresa(idEmpresaActiva); // <-- variable global asignada
-// 👇 👇 AQUI AGREGAS LA CATEGORIA 👇 👇
-            pro.setCategoria("Verduleria");
-            // Registrar producto en la base de datos
-            if (proDao.RegistrarProductos(pro)) {
-                JOptionPane.showMessageDialog(null, "Producto registrado correctamente");
-            } else {
-                JOptionPane.showMessageDialog(null, "Error al registrar el producto");
-                return;
-            }
-
-            // Limpiar y actualizar tabla y formulario
-            LimpiarTable();
-            ListarProductos();
-            LimpiarProductos();
-            cbxProveedorPro.removeAllItems();
-            llenarProveedor();
-            btnEditarpro.setEnabled(false);
-            btnEliminarPro.setEnabled(false);
-            btnGuardarpro.setEnabled(true);
-            txtCodigoPro.requestFocus();
-
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(null, "Error: asegúrate de que la cantidad y precios sean números válidos.");
-        }
-
-    } else {
-        JOptionPane.showMessageDialog(null, "Todos los campos deben estar llenos.");
-    } */ 
+   
     }//GEN-LAST:event_btnGuardarproActionPerformed
 
     private void cbxProveedorProActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cbxProveedorProActionPerformed
