@@ -139,7 +139,8 @@ private boolean aplicandoPromos = false;
 private List<Promocion> promosVigentes = new ArrayList<>();
 private InfoEmpresa infoEmpresa;
 private boolean ajusteActivado = false;
-
+//
+private JLabel lblVersion;
 
 public static void setUsuarioActivo(String usuario) {
     usuarioActivo = usuario;
@@ -385,6 +386,17 @@ jPanel2.add(bannersFiados, new org.netbeans.lib.awtextra.AbsoluteConstraints(520
     jPanel1.revalidate();
     jPanel1.repaint();
 
+    
+    // ver la version de la app
+    lblVersion = new JLabel("Versión: " + ConfigApp.getVersion());
+        lblVersion.setForeground(new Color(255, 255, 255, 200));
+        lblVersion.setFont(lblVersion.getFont().deriveFont(Font.PLAIN, 12f));
+        lblVersion.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        lblVersion.setBounds(btnConfiguraciones.getX(),
+                             btnConfiguraciones.getY() + btnConfiguraciones.getHeight() + 62,
+                             btnConfiguraciones.getWidth(), 18);
+        jPanel1.add(lblVersion);
+    
     // Listener para abrir la pestaña de Config Dispositivos
     btnConfiguraciones.addActionListener(evt -> {
         if (jPanelConfig == null) {

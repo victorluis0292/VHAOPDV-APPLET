@@ -12,7 +12,8 @@ public class VerificadorActualizacion {
     // 📁 Último release publicado en GitHub
     private static final String URL_ULTIMO_RELEASE =
         "https://api.github.com/repos/victorluis0292/vhaoPDV-releases/releases/latest";
-
+    // true = solo descarga y muestra diagnóstico, NO ejecuta el instalador ni cierra la app
+    private static final boolean MODO_PRUEBA = false;
     public static void verificar() {
         new Thread(() -> {   // 🔥 Evita congelar Swing
             System.out.println("🚀 Iniciando verificación de actualización...");
@@ -106,84 +107,139 @@ public class VerificadorActualizacion {
         }
     }
 
-       private static void descargarYReemplazar(String urlDescarga, String versionRemota) {
-        LoaderUpdateSystemPDV loader = new LoaderUpdateSystemPDV(null, "Descargando actualización...");
-        loader.mostrar();
+     private static void descargarYReemplazar(String urlDescarga, String versionRemota) {
+    LoaderUpdateSystemPDV loader = new LoaderUpdateSystemPDV(null, "Descargando actualización...");
+    loader.mostrar();
 
-        new Thread(() -> {
-            File temporal = null;
-            try {
-                // Carpeta con permiso de escritura (Program Files no lo permite)
-                File carpeta = new File(System.getProperty("java.io.tmpdir"), "VHAO_PDV_Update");
-                if (!carpeta.exists() && !carpeta.mkdirs()) {
-                    throw new IOException("No se pudo crear la carpeta de descarga: " + carpeta);
-                }
+    new Thread(() -> {
+        File temporal = null;
+        HttpURLConnection conn = null;
+        try {
+            // Carpeta con permiso de escritura (Program Files no lo permite)
+            File carpeta = new File(System.getProperty("java.io.tmpdir"), "VHAO_PDV_Update");
+            if (!carpeta.exists() && !carpeta.mkdirs()) {
+                throw new IOException("No se pudo crear la carpeta de descarga: " + carpeta);
+            }
 
-                String nombreArchivo = "VHAO PDV Online " + versionRemota + ".exe";
-                File destino = new File(carpeta, nombreArchivo);
-                temporal = new File(carpeta, nombreArchivo + ".tmp");
+            String nombreArchivo = "VHAO PDV Online " + versionRemota + ".exe";
+            File destino = new File(carpeta, nombreArchivo);
+            temporal = new File(carpeta, nombreArchivo + ".tmp");
 
-                // Descargar primero a un archivo temporal
-                URL url = new URL(urlDescarga);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            // ------------------------------------------------------------
+            // Abrir conexión siguiendo redirecciones a mano (máx. 5)
+            // ------------------------------------------------------------
+            String urlActual = urlDescarga;
+            int codigo = 0;
+
+            for (int salto = 0; salto <= 5; salto++) {
+                System.out.println("🌐 Pidiendo [" + salto + "]: " + urlActual);
+
+                conn = (HttpURLConnection) new URL(urlActual).openConnection();
+                conn.setInstanceFollowRedirects(false);
                 conn.setRequestProperty("User-Agent", "VHAO-PDV-Updater");
+                conn.setRequestProperty("Accept", "application/octet-stream");
                 conn.setConnectTimeout(10000);
                 conn.setReadTimeout(30000);
 
-                String tipo = conn.getContentType();
-                if (conn.getResponseCode() != 200 || (tipo != null && tipo.contains("text/html"))) {
-                    throw new IOException("El servidor devolvió HTML en lugar del .exe. "
-                            + "Revisa que el release tenga el instalador adjunto.");
-                }
+                codigo = conn.getResponseCode();
+                System.out.println("   HTTP   : " + codigo);
 
-                try (InputStream in = conn.getInputStream();
-                     FileOutputStream out = new FileOutputStream(temporal)) {
-                    byte[] buffer = new byte[8192];
-                    int bytesRead;
-                    long total = 0;
-                    while ((bytesRead = in.read(buffer)) != -1) {
-                        out.write(buffer, 0, bytesRead);
-                        total += bytesRead;
+                if (codigo == 301 || codigo == 302 || codigo == 303
+                        || codigo == 307 || codigo == 308) {
+                    String destinoRedir = conn.getHeaderField("Location");
+                    conn.disconnect();
+                    if (destinoRedir == null || destinoRedir.isEmpty()) {
+                        throw new IOException("Redirección sin destino (HTTP " + codigo + ")");
                     }
-                    System.out.println("✅ Descarga completada (" + total / 1024 + " KB)");
+                    // Resuelve rutas relativas si las hubiera
+                    urlActual = new URL(new URL(urlActual), destinoRedir).toString();
+                    continue;
                 }
-
-                // Borrar instaladores de descargas anteriores (solo en la carpeta de descarga)
-                File[] viejos = carpeta.listFiles((dir, name) ->
-                        name.toLowerCase().endsWith(".exe") && !name.equals(nombreArchivo));
-                if (viejos != null) {
-                    for (File f : viejos) {
-                        if (f.delete()) {
-                            System.out.println("🗑 Instalador anterior eliminado: " + f.getName());
-                        }
-                    }
-                }
-
-                // Renombrar el temporal al nombre final
-                if (destino.exists()) destino.delete();
-                if (!temporal.renameTo(destino)) {
-                    throw new IOException("No se pudo guardar el archivo descargado.");
-                }
-
-                // Ejecutar el instalador (pide permisos de administrador y reabre la app al terminar)
-                new ProcessBuilder("cmd", "/c", "start", "", destino.getAbsolutePath(),
-                        "/SILENT", "/CLOSEAPPLICATIONS", "/NORESTART").start();
-
-                // Cerrar la app actual para que el instalador pueda reemplazar los archivos
-                System.exit(0);
-
-            } catch (Exception e) {
-                if (temporal != null && temporal.exists()) temporal.delete();
-                SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(null,
-                        "❌ Error durante la descarga: " + e.getMessage(),
-                        "Error", JOptionPane.ERROR_MESSAGE));
-                e.printStackTrace();
-            } finally {
-                loader.cerrar();
+                break;   // no es redirección: ya tenemos la respuesta final
             }
-        }).start();
-    }
-    /**
+
+            String tipo = conn.getContentType();
+            long tamano = conn.getContentLengthLong();
+
+            System.out.println("   Tipo   : " + tipo);
+            System.out.println("   Tamaño : " + tamano + " bytes");
+            System.out.println("   URL fin: " + urlActual);
+
+            if (codigo != 200 || (tipo != null && tipo.toLowerCase().contains("text/html"))) {
+                throw new IOException("Descarga rechazada (HTTP " + codigo
+                        + ", tipo: " + tipo + "). Si el release es recién publicado, "
+                        + "espera unos minutos y vuelve a intentar.");
+            }
+
+            // ------------------------------------------------------------
+            // Descargar primero a un archivo temporal
+            // ------------------------------------------------------------
+            try (InputStream in = conn.getInputStream();
+                 FileOutputStream out = new FileOutputStream(temporal)) {
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                long total = 0;
+                while ((bytesRead = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                    total += bytesRead;
+                }
+                System.out.println("✅ Descarga completada (" + total / 1024 + " KB)");
+
+                // Si el servidor dijo el tamaño y no coincide, la descarga quedó cortada
+                if (tamano > 0 && total != tamano) {
+                    throw new IOException("Descarga incompleta: recibidos " + total
+                            + " de " + tamano + " bytes.");
+                }
+            }
+
+            // Borrar instaladores de descargas anteriores (solo en la carpeta de descarga)
+            File[] viejos = carpeta.listFiles((dir, name) ->
+                    name.toLowerCase().endsWith(".exe") && !name.equals(nombreArchivo));
+            if (viejos != null) {
+                for (File f : viejos) {
+                    if (f.delete()) {
+                        System.out.println("🗑 Instalador anterior eliminado: " + f.getName());
+                    }
+                }
+            }
+
+            // Renombrar el temporal al nombre final
+            if (destino.exists()) destino.delete();
+            if (!temporal.renameTo(destino)) {
+                throw new IOException("No se pudo guardar el archivo descargado.");
+            }
+
+            // ------------------------------------------------------------
+            // Modo prueba: solo confirma que la descarga funciona
+            // ------------------------------------------------------------
+            if (MODO_PRUEBA) {
+                System.out.println("🧪 MODO_PRUEBA: archivo descargado en " + destino.getAbsolutePath());
+                System.out.println("🧪 No se ejecuta el instalador ni se cierra la app.");
+                SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(null,
+                        "Descarga correcta (modo prueba).\n" + destino.getAbsolutePath(),
+                        "Prueba de actualización", JOptionPane.INFORMATION_MESSAGE));
+                return;
+            }
+
+            // Ejecutar el instalador (pide permisos de administrador y reabre la app al terminar)
+            new ProcessBuilder("cmd", "/c", "start", "", destino.getAbsolutePath(),
+                    "/SILENT", "/CLOSEAPPLICATIONS", "/NORESTART").start();
+
+            // Cerrar la app actual para que el instalador pueda reemplazar los archivos
+            System.exit(0);
+
+        } catch (Exception e) {
+            if (temporal != null && temporal.exists()) temporal.delete();
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(null,
+                    "❌ Error durante la descarga: " + e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE));
+            e.printStackTrace();
+        } finally {
+            if (conn != null) conn.disconnect();
+            loader.cerrar();
+        }
+    }).start();
+} /**
      * 🔹 Compara dos versiones tipo "1.2.3"
      * Devuelve >0 si v1 > v2, 0 si son iguales, <0 si v1 < v2
      */

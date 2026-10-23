@@ -44,19 +44,23 @@ public class BannersCreditoCliente extends JPanel {
     // Evita consultas repetidas cuando varios eventos llegan juntos
     private static final long MIN_MS_ENTRE_CARGAS = 2000;
 
-    private static final String SQL =
-            "SELECT d.dni, d.cliente, "
+            private static final String SQL =
+            "SELECT d.dni, "
+          + "COALESCE(MAX(c.nombre), "
+          + "  SUBSTRING_INDEX(GROUP_CONCAT(d.cliente ORDER BY d.fecha DESC SEPARATOR '||'), '||', 1)) AS cliente, "
           + "SUM(GREATEST(d.total - IFNULL(a.abonado, 0), 0)) AS saldo, "
           + "MIN(d.fecha) AS fiado_desde "
           + "FROM detalle_creditocliente d "
           + "LEFT JOIN (SELECT id_detalle, SUM(monto) AS abonado "
           + "           FROM abonos_credito WHERE id_empresa = ? "
           + "           GROUP BY id_detalle) a ON a.id_detalle = d.id "
+          + "LEFT JOIN (SELECT dni, id_empresa, MAX(nombre) AS nombre "
+          + "           FROM clientes GROUP BY dni, id_empresa) c "
+          + "       ON c.dni = d.dni AND c.id_empresa = d.id_empresa "
           + "WHERE d.id_empresa = ? AND d.pagado = 0 "
-          + "GROUP BY d.dni, d.cliente "
+          + "GROUP BY d.dni "
           + "HAVING saldo > 0 "
           + "ORDER BY saldo DESC";
-
     private final BiConsumer<Integer, String> alTocar;
     private final JLabel titulo = new JLabel();
     private final JPanel fila = new JPanel(
