@@ -1983,3 +1983,32 @@ The last packet sent successfully to the server was 0 milliseconds ago. The driv
 2026-10-22T02:36:02.960 - ERROR - Intento de login fallido: victorluishenandez92@gmail.com | Empresa: 1 - 
 2026-10-22T02:36:07.357 - ERROR - Intento de login fallido: victorluishenandez92@gmail.com | Empresa: 1 - 
 2026-10-22T02:36:18.791 - INFO - Usuario válido: victor luis hernandez | Empresa: 1
+2026-10-23T00:56:31.049 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
+2026-10-23T00:57:05.518 - INFO - Usuario válido: Efren Rodriguez | Empresa: 22
+2026-10-23T01:10:16.327 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
+2026-10-23T01:10:20.667 - INFO - Usuario válido: Efren Rodriguez | Empresa: 22
+2026-10-23T01:12:24.260 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
+2026-10-23T01:12:27.706 - INFO - Usuario válido: Efren Rodriguez | Empresa: 22
+2026-10-23T01:51:20.078 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
+2026-10-23T01:51:42.230 - INFO - Usuario válido: Efren Rodriguez | Empresa: 22
+2026-10-23T02:00:23.757 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
+2026-10-23T02:00:27.789 - INFO - Usuario válido: Efren Rodriguez | Empresa: 22
+2026-10-23T02:10:20.258 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
+2026-10-23T02:10:23.578 - ERROR - Intento de login fallido: efren@gmail.com | Empresa: 22 - 
+2026-10-23T02:10:26.870 - INFO - Usuario válido: Efren Rodriguez | Empresa: 22
+2026-10-23T02:18:33.101 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
+2026-10-23T02:18:45.866 - INFO - Usuario válido: Efren Rodriguez | Empresa: 22
+2026-10-23T02:19:16.373 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
+2026-10-23T02:19:16.881 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
+2026-10-23T02:19:20.197 - ERROR - Intento de login fallido: efren@gmail.com | Empresa: 22 - 
+2026-10-23T02:19:34.079 - INFO - Usuario válido: victor luis hernandez | Empresa: 1
+2026-10-23T02:20:29.016 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
+2026-10-23T02:20:33.735 - INFO - Usuario válido: victor luis hernandez | Empresa: 1
+2026-10-23T02:22:39.296 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
+2026-10-23T02:22:43.044 - INFO - Usuario válido: victor luis hernandez | Empresa: 1
+2026-10-23T02:31:46.837 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
+2026-10-23T02:32:18.611 - INFO - Usuario válido: victor luis hernandez | Empresa: 1
+2026-10-23T02:50:04.364 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
+2026-10-23T02:50:08.139 - INFO - Usuario válido: victor luis hernandez | Empresa: 1
+2026-10-23T02:55:15.396 - INFO - Pool HikariCP inicializado correctamente. Entorno: prod
+2026-10-23T02:55:20.023 - INFO - Usuario válido: victor luis hernandez | Empresa: 1

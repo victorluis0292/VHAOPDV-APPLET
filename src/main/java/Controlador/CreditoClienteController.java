@@ -1223,7 +1223,40 @@ public class CreditoClienteController {
 
         consulta.setVisible(true);
     }
+    
+    // ============================================================
+// VER HISTORIAL DE UN CLIENTE (usado por los banners de fiado)
+// ============================================================
 
+/**
+ * Abre la misma ventana "Consulta Crédito Cliente" que el botón
+ * Ver Historial, pero con el cliente que viene del banner.
+ *
+ * No toca los campos del panel (txtRuc / txtNombreCliente) ni
+ * limpia nada al cerrar, para no pisar una captura que el usuario
+ * tenga a medias en la pestaña de Crédito Cliente.
+ */
+public void verHistorialDe(int dni, String nombre) {
+
+    if (nombre == null || nombre.trim().isEmpty()) {
+        return;
+    }
+
+    ConsultaCreditoCliente
+            .setIdEmpresaActiva(
+                    Sistema.getIdEmpresaActiva()
+            );
+
+    ConsultaCreditoCliente consulta =
+            new ConsultaCreditoCliente(
+                    dni,
+                    nombre.trim(),
+                    0,
+                    0
+            );
+
+    consulta.setVisible(true);
+}
 
     // ============================================================
     // GENERAR VENTA A CRÉDITO

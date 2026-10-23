@@ -52,6 +52,7 @@ public class PanelProductos extends JPanel {
     public JTable TableProducto;
     public DefaultTableModel modelo;
     public JButton btnPromociones;
+    public JButton btnNuevaCategoria;
     public JButton btnGenerarCodigoBarras;
 
     private ButtonGroup grupoTipoVenta;
@@ -141,7 +142,7 @@ public class PanelProductos extends JPanel {
        panelCentro.setOpaque(false);
        panelCentro.add(btnPromociones);
        panelSuperior.add(panelCentro, BorderLayout.CENTER);
-
+       //
         // --- Botones Excel ---
         btnExportarExcel = new JButton("Exportar");
         btnExportarExcel.setIcon(cargarIcono("/Img/exportar_excel.png", 25, 25));
@@ -163,7 +164,7 @@ public class PanelProductos extends JPanel {
         Estilos.PanelConEstilo panelFormulario = new Estilos.PanelConEstilo();
         panelFormulario.setPreferredSize(new Dimension(430, 0));
 
-        JPanel contenidoFormulario = new JPanel(new GridBagLayout());
+        JPanel contenidoFormulario = new PanelFormulario();
         contenidoFormulario.setOpaque(false);
 
         JLabel tituloFormulario = new JLabel("Nuevo Producto");
@@ -189,9 +190,9 @@ public class PanelProductos extends JPanel {
         Estilos.estiloCampo(txtPreciocompraPro);
 
         // Radio buttons
-        rbPorUnidad = new JRadioButton("Por Unidad/Pza", true);
+        rbPorUnidad = new JRadioButton("Unidad", true);
         rbAGranel = new JRadioButton("A Granel");
-        rbComoPaquete = new JRadioButton("Paquete / Kit");
+        rbComoPaquete = new JRadioButton("Paquete/Kit");
 
         Font fontRadio = new Font("Segoe UI", Font.PLAIN, 12);
         rbPorUnidad.setFont(fontRadio);
@@ -206,7 +207,7 @@ public class PanelProductos extends JPanel {
         grupoTipoVenta.add(rbAGranel);
         grupoTipoVenta.add(rbComoPaquete);
 
-        JPanel panelTipoVenta = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 0));
+        JPanel panelTipoVenta = new JPanel(new GridLayout(1, 3, 3, 0));
         panelTipoVenta.setOpaque(false);
         panelTipoVenta.add(rbPorUnidad);
         panelTipoVenta.add(rbAGranel);
@@ -244,6 +245,18 @@ public class PanelProductos extends JPanel {
 
         cbxProveedorPro.setRenderer(cleanRenderer);
         cbxCategoria.setRenderer(cleanRenderer);
+        // --boton nueva categoria--
+        btnNuevaCategoria = new JButton("+");
+        btnNuevaCategoria.setPreferredSize(new Dimension(45, 34));
+        btnNuevaCategoria.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        btnNuevaCategoria.setToolTipText("Agregar categoría");
+        Estilos.estiloBotonAzul(btnNuevaCategoria);
+
+        JPanel panelCategoria = new JPanel(new BorderLayout(5, 0));
+        panelCategoria.setOpaque(false);
+        panelCategoria.add(cbxCategoria, BorderLayout.CENTER);
+        panelCategoria.add(btnNuevaCategoria, BorderLayout.EAST);
+////////////////////////////////////////////////////////////7777
 
         // Imagen / catálogo
         txtImagenPro = new JTextField();
@@ -273,7 +286,7 @@ public class PanelProductos extends JPanel {
         agregarCampo(contenidoFormulario, "Código:", txtCodigoPro, gbc, fila++);
         agregarCampo(contenidoFormulario, "Descripción:", txtDesPro, gbc, fila++);
         agregarCampo(contenidoFormulario, "Se vende:", panelTipoVenta, gbc, fila++);
-        agregarCampo(contenidoFormulario, "Categoría:", cbxCategoria, gbc, fila++);
+        agregarCampo(contenidoFormulario, "Categoría:", panelCategoria, gbc, fila++);
         agregarCampo(contenidoFormulario, "Cantidad:", txtCantPro, gbc, fila++);
         agregarCampo(contenidoFormulario, "Precio Venta:", txtPrecioPro, gbc, fila++);
         agregarCampo(contenidoFormulario, "Precio Compra:", txtPreciocompraPro, gbc, fila++);
@@ -879,6 +892,8 @@ public class PanelProductos extends JPanel {
         //--Promociones---
         btnPromociones.addActionListener(e ->
     new FrmPromociones((Frame) SwingUtilities.getWindowAncestor(this), idEmpresa, proDao).setVisible(true));
+        // --- Nueva categoría ---
+    btnNuevaCategoria.addActionListener(e -> abrirDialogoAgregarCategoria());
 
         // --- Exportar ---
         btnExportarExcel.addActionListener(e -> {
@@ -1333,6 +1348,63 @@ public class PanelProductos extends JPanel {
         dialog.setVisible(true);
     }
 
+        private void abrirDialogoAgregarCategoria() {
+        String nombre = JOptionPane.showInputDialog(this,
+                "Nombre de la nueva categoría:", "Agregar categoría", JOptionPane.PLAIN_MESSAGE);
+
+        if (nombre == null) return; // canceló
+        nombre = nombre.trim();
+
+        if (nombre.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "El nombre es obligatorio.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        if (nombre.length() > 50) {
+            JOptionPane.showMessageDialog(this, "El nombre no puede tener más de 50 caracteres.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Evitar duplicados (sin importar mayúsculas)
+        for (int i = 0; i < cbxCategoria.getItemCount(); i++) {
+            Categoria item = cbxCategoria.getItemAt(i);
+            if (item != null && item.getIdCategoria() != 0 && item.getNombre().equalsIgnoreCase(nombre)) {
+                JOptionPane.showMessageDialog(this, "La categoría '" + nombre + "' ya existe.", "Duplicada", JOptionPane.WARNING_MESSAGE);
+                cbxCategoria.setSelectedIndex(i);
+                return;
+            }
+        }
+
+        int idNuevo = categoriaDao.registrar(nombre, idEmpresa);
+
+        if (idNuevo <= 0) {
+            // Pudo haberla creado otro usuario justo antes: refrescar y seleccionarla si existe
+            llenarCategorias();
+            for (int i = 0; i < cbxCategoria.getItemCount(); i++) {
+                Categoria item = cbxCategoria.getItemAt(i);
+                if (item != null && item.getIdCategoria() != 0 && item.getNombre().equalsIgnoreCase(nombre)) {
+                    cbxCategoria.setSelectedIndex(i);
+                    return;
+                }
+            }
+            JOptionPane.showMessageDialog(this, "No se pudo crear la categoría.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        llenarCategorias();
+        seleccionarCategoriaPorId(idNuevo);
+    }
+
+    private void seleccionarCategoriaPorId(int idCategoria) {
+        for (int i = 0; i < cbxCategoria.getItemCount(); i++) {
+            Categoria item = cbxCategoria.getItemAt(i);
+            if (item != null && item.getIdCategoria() == idCategoria) {
+                cbxCategoria.setSelectedIndex(i);
+                return;
+            }
+        }
+    } 
+
     private JLabel crearLabelDialogo(String texto) {
         JLabel label = new JLabel(texto);
         label.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -1522,5 +1594,18 @@ public class PanelProductos extends JPanel {
             });
 
         }).start();
+    }
+     // ============================================================
+    // PANEL DEL FORMULARIO (ajusta el ancho al scroll)
+    // ============================================================
+
+    private static class PanelFormulario extends JPanel implements Scrollable {
+        PanelFormulario() { super(new GridBagLayout()); }
+
+        @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+        @Override public int getScrollableUnitIncrement(Rectangle r, int o, int d) { return 16; }
+        @Override public int getScrollableBlockIncrement(Rectangle r, int o, int d) { return 64; }
+        @Override public boolean getScrollableTracksViewportWidth() { return true; }
+        @Override public boolean getScrollableTracksViewportHeight() { return false; }
     }
 }
