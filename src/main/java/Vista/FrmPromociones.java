@@ -1,5 +1,6 @@
 package Vista;
 
+import Estilos.EstiloPromociones;
 import Estilos.Estilos;
 import Modelo.Productos;
 import Modelo.ProductosDao;
@@ -8,8 +9,13 @@ import Modelo.PromocionDao;
 import com.toedter.calendar.JDateChooser;
 
 import java.awt.*;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -20,7 +26,6 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.text.AbstractDocument;
 import javax.swing.text.AttributeSet;
@@ -40,49 +45,65 @@ public class FrmPromociones extends JDialog {
     private List<Promocion> promos = new ArrayList<>();
     private Promocion promoEditando = null;
 
-    private JLabel lblTituloForm, lblResumen;
-    private JTextField txtDescripcion, txtCantidad, txtPrecioPaquete, txtBuscarProd;
+    // Formulario
+    private JLabel lblTituloForm, lblResumen, lblProductos;
+    private JTextField txtDescripcion, txtCantidad, txtPrecioPaquete;
     private JDateChooser dcInicio, dcFin;
-    private JComboBox<ItemProd> cbxProductos;
+    private JButton btnGuardar, btnNueva, btnEliminar, btnQuitarProd;
+
+    // Buscador de productos (campo + popup de sugerencias)
+    private EstiloPromociones.CampoBusqueda txtBuscarProd;
+    private final DefaultListModel<ItemProd> modeloSugerencias = new DefaultListModel<>();
+    private JList<ItemProd> listaSugerencias;
+    private JScrollPane scrollSugerencias;
+    private JPopupMenu popupSugerencias;
+
+    // Productos agregados a la promoción
     private final DefaultListModel<ItemProd> modeloProductos = new DefaultListModel<>();
     private JList<ItemProd> listaProductos;
+
+    // Tabla
     private DefaultTableModel modeloTabla;
     private JTable tabla;
-    private JButton btnGuardar, btnNueva, btnEliminar, btnAgregarProd, btnQuitarProd;
 
     // ------------------------------------------------------------
-    // Producto para el combo y la lista
+    // Producto para las listas
     // ------------------------------------------------------------
-   private static class ItemProd {
-    final int id;
-    final String codigo;
-    final String nombre;
-    final double precio;
-    final boolean placeholder;
+    private static class ItemProd implements EstiloPromociones.ItemVisual {
+        final int id;
+        final String codigo;
+        final String nombre;
+        final double precio;
+        final boolean vacio;
 
-    ItemProd(Productos p) {
-        this.id = p.getId();
-        this.codigo = p.getCodigo() == null ? "" : p.getCodigo();
-        this.nombre = p.getNombre() == null ? "" : p.getNombre();
-        this.precio = p.getPrecio();
-        this.placeholder = false;
+        ItemProd(Productos p) {
+            this.id = p.getId();
+            this.codigo = p.getCodigo() == null ? "" : p.getCodigo();
+            this.nombre = p.getNombre() == null ? "" : p.getNombre();
+            this.precio = p.getPrecio();
+            this.vacio = false;
+        }
+
+        // Fila "Sin resultados"
+        ItemProd() {
+            this.id = -1;
+            this.codigo = "";
+            this.nombre = "";
+            this.precio = 0;
+            this.vacio = true;
+        }
+
+        @Override public String titulo()  { return nombre; }
+        @Override public String detalle() { return "Código: " + codigo; }
+        @Override public String precio()  { return String.format("$%.2f", precio); }
+        @Override public boolean vacio()  { return vacio; }
+
+        @Override
+        public String toString() {   // lo usa la lista de productos agregados
+            return codigo + "  |  " + nombre + "  |  " + String.format("$%.2f", precio);
+        }
     }
 
-    // Ítem "Seleccione"
-    ItemProd() {
-        this.id = -1;
-        this.codigo = "";
-        this.nombre = "Seleccione";
-        this.precio = 0;
-        this.placeholder = true;
-    }
-
-    @Override
-    public String toString() {
-        if (placeholder) return "Seleccione";
-        return codigo + "  |  " + nombre + "  |  $" + String.format("%.2f", precio);
-    }
-}
     // ------------------------------------------------------------
     // Constructor
     // ------------------------------------------------------------
@@ -91,11 +112,10 @@ public class FrmPromociones extends JDialog {
         this.idEmpresa = idEmpresa;
         this.proDao = proDao;
 
-        setSize(1180, 700);
+        setSize(1600, 700);
         setLocationRelativeTo(parent);
-        getContentPane().setBackground(new Color(245, 247, 250));
         setLayout(new BorderLayout(12, 12));
-        ((JComponent) getContentPane()).setBorder(new EmptyBorder(12, 12, 12, 12));
+        EstiloPromociones.ventana(this);
 
         List<Productos> lista = proDao.ListarProductos(idEmpresa);
         if (lista != null) catalogo = lista;
@@ -103,7 +123,6 @@ public class FrmPromociones extends JDialog {
         add(crearFormulario(), BorderLayout.WEST);
         add(crearTabla(), BorderLayout.CENTER);
 
-        filtrarProductos("");
         listar();
         limpiar();
     }
@@ -126,8 +145,7 @@ public class FrmPromociones extends JDialog {
         int fila = 0;
 
         lblTituloForm = new JLabel("Nueva promoción");
-        lblTituloForm.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        lblTituloForm.setForeground(new Color(0, 102, 204));
+        EstiloPromociones.titulo(lblTituloForm);
         gbc.gridx = 0;
         gbc.gridy = fila++;
         gbc.gridwidth = 2;
@@ -139,9 +157,9 @@ public class FrmPromociones extends JDialog {
         Estilos.estiloCampo(txtDescripcion);
         Estilos.estiloCampo(txtCantidad);
         Estilos.estiloCampo(txtPrecioPaquete);
-        
+
         soloNumeros(txtCantidad, false);       // piezas: solo enteros
-soloNumeros(txtPrecioPaquete, true);   // precio: decimales (máx. 2)
+        soloNumeros(txtPrecioPaquete, true);   // precio: decimales (máx. 2)
 
         dcInicio = crearFecha();
         dcFin = crearFecha();
@@ -152,59 +170,28 @@ soloNumeros(txtPrecioPaquete, true);   // precio: decimales (máx. 2)
         agregarCampo(c, "Fecha inicio:", dcInicio, gbc, fila++);
         agregarCampo(c, "Fecha fin:", dcFin, gbc, fila++);
 
-        // --- Selector de productos (ocupa las 2 columnas) ---
-        JLabel lblProd = new JLabel("Productos de la promo (cualquiera de ellos cuenta):");
-        lblProd.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        lblProd.setForeground(new Color(70, 70, 70));
+        // --- Productos de la promo (ocupa las 2 columnas) ---
+        lblProductos = new JLabel("Productos de la promoción (0)");
+        EstiloPromociones.etiqueta(lblProductos);
         gbc.gridx = 0;
         gbc.gridy = fila++;
         gbc.gridwidth = 2;
-        c.add(lblProd, gbc);
+        c.add(lblProductos, gbc);
 
-        txtBuscarProd = new JTextField();
-        Estilos.estiloCampo(txtBuscarProd);
-        txtBuscarProd.setToolTipText("Escribe código o nombre para filtrar");
-
-        JLabel lupa = new JLabel(iconoLupa());
-        lupa.setBorder(new EmptyBorder(0, 8, 0, 0));
-        txtBuscarProd.setLayout(new BorderLayout());
-        txtBuscarProd.add(lupa, BorderLayout.WEST);
-        txtBuscarProd.setMargin(new Insets(2, 32, 2, 6));
-
-        cbxProductos = new JComboBox<>();
-        cbxProductos.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        cbxProductos.setPreferredSize(new Dimension(0, 34));
-        
-                cbxProductos.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index,
-                                                          boolean sel, boolean foc) {
-                Component comp = super.getListCellRendererComponent(list, value, index, sel, foc);
-                if (value instanceof ItemProd && ((ItemProd) value).placeholder && !sel) {
-                    comp.setForeground(Color.GRAY);
-                }
-                return comp;
-            }
-        });
-        
-        btnAgregarProd = new JButton("Agregar a la promoción");
-        Estilos.estiloBotonAzul(btnAgregarProd);
-
-        JPanel buscador = new JPanel(new GridLayout(3, 1, 0, 6));
-        buscador.setOpaque(false);
-        buscador.add(txtBuscarProd);
-        buscador.add(cbxProductos);
-        buscador.add(btnAgregarProd);
+        txtBuscarProd = new EstiloPromociones.CampoBusqueda("Busca por código o nombre y presiona Enter");
+        txtBuscarProd.setToolTipText("Escribe código o nombre. ↑ ↓ para moverte, Enter para agregar");
         gbc.gridy = fila++;
-        c.add(buscador, gbc);
+        c.add(txtBuscarProd, gbc);
+        crearPopupSugerencias();
 
         listaProductos = new JList<>(modeloProductos);
-        listaProductos.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        EstiloPromociones.listaProductos(listaProductos);
         JScrollPane scrollLista = new JScrollPane(listaProductos);
-    gbc.gridy = fila++;
-    gbc.ipady = 90;          // alto de la lista
-    c.add(scrollLista, gbc);
-    gbc.ipady = 0;
+        EstiloPromociones.scroll(scrollLista);
+        gbc.gridy = fila++;
+        gbc.ipady = 90;          // alto de la lista
+        c.add(scrollLista, gbc);
+        gbc.ipady = 0;
 
         btnQuitarProd = new JButton("Quitar seleccionado");
         Estilos.estiloBotonAzul(btnQuitarProd);
@@ -212,7 +199,7 @@ soloNumeros(txtPrecioPaquete, true);   // precio: decimales (máx. 2)
         c.add(btnQuitarProd, gbc);
 
         lblResumen = new JLabel(" ");
-        lblResumen.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblResumen.setFont(EstiloPromociones.F_ETIQUETA);
         gbc.gridy = fila++;
         c.add(lblResumen, gbc);
 
@@ -240,11 +227,41 @@ soloNumeros(txtPrecioPaquete, true);   // precio: decimales (máx. 2)
         panel.add(c, BorderLayout.CENTER);
 
         // --- Eventos ---
-        txtBuscarProd.getDocument().addDocumentListener(simple(() -> filtrarProductos(txtBuscarProd.getText())));
+        txtBuscarProd.getDocument().addDocumentListener(simple(this::mostrarSugerencias));
+        txtBuscarProd.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                switch (e.getKeyCode()) {
+                    case KeyEvent.VK_DOWN:
+                        moverSeleccion(1);
+                        e.consume();
+                        break;
+                    case KeyEvent.VK_UP:
+                        moverSeleccion(-1);
+                        e.consume();
+                        break;
+                    case KeyEvent.VK_ENTER:
+                        agregarSeleccionado();
+                        e.consume();
+                        break;
+                    case KeyEvent.VK_ESCAPE:
+                        popupSugerencias.setVisible(false);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        });
+        txtBuscarProd.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                popupSugerencias.setVisible(false);
+            }
+        });
+
         txtCantidad.getDocument().addDocumentListener(simple(this::actualizarResumen));
         txtPrecioPaquete.getDocument().addDocumentListener(simple(this::actualizarResumen));
 
-        btnAgregarProd.addActionListener(e -> agregarProducto());
         btnQuitarProd.addActionListener(e -> {
             int i = listaProductos.getSelectedIndex();
             if (i >= 0) {
@@ -266,8 +283,7 @@ soloNumeros(txtPrecioPaquete, true);   // precio: decimales (máx. 2)
         Estilos.PanelConEstilo panel = new Estilos.PanelConEstilo();
 
         JLabel titulo = new JLabel("Promociones registradas");
-        titulo.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        titulo.setForeground(new Color(0, 102, 204));
+        EstiloPromociones.titulo(titulo);
 
         String[] columnas = {"ID", "DESCRIPCIÓN", "PIEZAS", "PRECIO PAQUETE", "INICIO", "FIN", "PRODUCTOS", "ESTADO"};
         modeloTabla = new DefaultTableModel(null, columnas) {
@@ -289,19 +305,7 @@ soloNumeros(txtPrecioPaquete, true);   // precio: decimales (máx. 2)
         }
 
         // Color del estado
-        tabla.getColumnModel().getColumn(7).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int r, int c) {
-                Component comp = super.getTableCellRendererComponent(t, v, sel, foc, r, c);
-                if (!sel) {
-                    String s = v == null ? "" : v.toString();
-                    if (s.equals("Vigente")) comp.setForeground(new Color(0, 128, 0));
-                    else if (s.equals("Programada")) comp.setForeground(new Color(200, 120, 0));
-                    else comp.setForeground(Color.GRAY);
-                }
-                return comp;
-            }
-        });
+        tabla.getColumnModel().getColumn(7).setCellRenderer(EstiloPromociones.rendererEstado());
 
         tabla.addMouseListener(new MouseAdapter() {
             @Override
@@ -312,24 +316,13 @@ soloNumeros(txtPrecioPaquete, true);   // precio: decimales (máx. 2)
         });
 
         JScrollPane scroll = new JScrollPane(tabla);
-        scroll.setBorder(BorderFactory.createLineBorder(new Color(210, 214, 220)));
-        scroll.getViewport().setBackground(Color.WHITE);
+        EstiloPromociones.scroll(scroll);
 
         panel.add(titulo, BorderLayout.NORTH);
         panel.add(scroll, BorderLayout.CENTER);
         return panel;
     }
 
-    
-    private Icon iconoLupa() {
-    java.net.URL url = getClass().getResource("/resources/Img/lupa.png");
-    if (url == null) {
-        return new ImageIcon(); // evita errores si no encuentra la imagen
-    }
-    Image img = new ImageIcon(url).getImage()
-            .getScaledInstance(16, 16, Image.SCALE_SMOOTH);
-    return new ImageIcon(img);
-}
     // ------------------------------------------------------------
     // Utilidades de interfaz
     // ------------------------------------------------------------
@@ -340,8 +333,7 @@ soloNumeros(txtPrecioPaquete, true);   // precio: decimales (máx. 2)
         gbc.weightx = 0;
 
         JLabel label = new JLabel(texto);
-        label.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        label.setForeground(new Color(70, 70, 70));
+        EstiloPromociones.etiqueta(label);
         panel.add(label, gbc);
 
         gbc.gridx = 1;
@@ -351,36 +343,37 @@ soloNumeros(txtPrecioPaquete, true);   // precio: decimales (máx. 2)
 
     private JDateChooser crearFecha() {
         JDateChooser dc = new JDateChooser();
-        dc.setDateFormatString("dd/MM/yyyy");
-        dc.setPreferredSize(new Dimension(0, 34));
+        EstiloPromociones.fecha(dc);
         return dc;
     }
+
     private void soloNumeros(JTextField campo, boolean permitirDecimal) {
-    ((AbstractDocument) campo.getDocument()).setDocumentFilter(new DocumentFilter() {
-        private boolean valido(String t) {
-            // Solo dígitos, y opcionalmente un punto con hasta 2 decimales
-            return permitirDecimal ? t.matches("\\d*(\\.\\d{0,2})?") : t.matches("\\d*");
-        }
-
-        @Override
-        public void insertString(FilterBypass fb, int offset, String str, AttributeSet a)
-                throws BadLocationException {
-            replace(fb, offset, 0, str, a);
-        }
-
-        @Override
-        public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet a)
-                throws BadLocationException {
-            String actual = fb.getDocument().getText(0, fb.getDocument().getLength());
-            String nuevo = actual.substring(0, offset)
-                    + (text == null ? "" : text)
-                    + actual.substring(offset + length);
-            if (valido(nuevo)) {
-                super.replace(fb, offset, length, text, a);
+        ((AbstractDocument) campo.getDocument()).setDocumentFilter(new DocumentFilter() {
+            private boolean valido(String t) {
+                // Solo dígitos, y opcionalmente un punto con hasta 2 decimales
+                return permitirDecimal ? t.matches("\\d*(\\.\\d{0,2})?") : t.matches("\\d*");
             }
-        }
-    });
-}
+
+            @Override
+            public void insertString(FilterBypass fb, int offset, String str, AttributeSet a)
+                    throws BadLocationException {
+                replace(fb, offset, 0, str, a);
+            }
+
+            @Override
+            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet a)
+                    throws BadLocationException {
+                String actual = fb.getDocument().getText(0, fb.getDocument().getLength());
+                String nuevo = actual.substring(0, offset)
+                        + (text == null ? "" : text)
+                        + actual.substring(offset + length);
+                if (valido(nuevo)) {
+                    super.replace(fb, offset, length, text, a);
+                }
+            }
+        });
+    }
+
     private DocumentListener simple(Runnable accion) {
         return new DocumentListener() {
             @Override
@@ -405,41 +398,105 @@ soloNumeros(txtPrecioPaquete, true);   // precio: decimales (máx. 2)
     }
 
     // ------------------------------------------------------------
-    // Productos: filtrar, agregar, resumen
+    // Buscador de productos: popup de sugerencias
     // ------------------------------------------------------------
-    private void filtrarProductos(String texto) {
-    String t = texto == null ? "" : texto.trim().toLowerCase();
-    cbxProductos.removeAllItems();
-    cbxProductos.addItem(new ItemProd());   // "Seleccione" siempre primero
-    int n = 0;
-    for (Productos p : catalogo) {
-        String cod = p.getCodigo() == null ? "" : p.getCodigo().toLowerCase();
-        String nom = p.getNombre() == null ? "" : p.getNombre().toLowerCase();
-        if (t.isEmpty() || cod.contains(t) || nom.contains(t)) {
-            cbxProductos.addItem(new ItemProd(p));
-            if (++n >= 200) break;
-        }
-    }
-    cbxProductos.setSelectedIndex(0);
-}
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void crearPopupSugerencias() {
+        listaSugerencias = new JList<>(modeloSugerencias);
+        EstiloPromociones.listaSugerencias((JList) listaSugerencias);
 
-    private void agregarProducto() {
-        ItemProd item = (ItemProd) cbxProductos.getSelectedItem();
-    if (item == null || item.placeholder) {
-        aviso("Selecciona un producto de la lista.");
-        return;
+        // Clic: agrega el producto
+        listaSugerencias.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                int i = listaSugerencias.locationToIndex(e.getPoint());
+                if (i >= 0) {
+                    listaSugerencias.setSelectedIndex(i);
+                    agregarSeleccionado();
+                }
+            }
+        });
+        // Hover: resalta la fila bajo el mouse
+        listaSugerencias.addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                int i = listaSugerencias.locationToIndex(e.getPoint());
+                if (i >= 0) listaSugerencias.setSelectedIndex(i);
+            }
+        });
+
+        scrollSugerencias = new JScrollPane(listaSugerencias);
+        EstiloPromociones.scroll(scrollSugerencias);
+        popupSugerencias = EstiloPromociones.crearPopup(scrollSugerencias);
     }
+
+    private boolean yaEstaAgregado(int id) {
         for (int i = 0; i < modeloProductos.size(); i++) {
-            if (modeloProductos.get(i).id == item.id) {
-                aviso("Ese producto ya está en la promoción.");
-                return;
+            if (modeloProductos.get(i).id == id) return true;
+        }
+        return false;
+    }
+
+    private void mostrarSugerencias() {
+        String t = txtBuscarProd.getText().trim().toLowerCase();
+        modeloSugerencias.clear();
+        if (t.isEmpty() || !txtBuscarProd.isShowing()) {
+            popupSugerencias.setVisible(false);
+            return;
+        }
+
+        int n = 0;
+        for (Productos p : catalogo) {
+            if (yaEstaAgregado(p.getId())) continue;   // no sugerir los ya agregados
+            String cod = p.getCodigo() == null ? "" : p.getCodigo().toLowerCase();
+            String nom = p.getNombre() == null ? "" : p.getNombre().toLowerCase();
+            if (cod.contains(t) || nom.contains(t)) {
+                modeloSugerencias.addElement(new ItemProd(p));
+                if (++n >= 30) break;
             }
         }
-        modeloProductos.addElement(item);
+        if (n == 0) modeloSugerencias.addElement(new ItemProd());   // "Sin resultados"
+        else listaSugerencias.setSelectedIndex(0);
+
+        int filas = Math.min(modeloSugerencias.size(), 6);
+        scrollSugerencias.setPreferredSize(
+                new Dimension(txtBuscarProd.getWidth(), filas * EstiloPromociones.ALTO_FILA + 2));
+
+        if (popupSugerencias.isVisible()) popupSugerencias.pack();
+        else popupSugerencias.show(txtBuscarProd, 0, txtBuscarProd.getHeight());
+    }
+
+    private void moverSeleccion(int delta) {
+        if (!popupSugerencias.isVisible()) {
+            if (delta > 0) mostrarSugerencias();
+            return;
+        }
+        int n = modeloSugerencias.size();
+        if (n == 0) return;
+        int i = Math.max(0, Math.min(n - 1, listaSugerencias.getSelectedIndex() + delta));
+        listaSugerencias.setSelectedIndex(i);
+        listaSugerencias.ensureIndexIsVisible(i);
+    }
+
+    private void agregarSeleccionado() {
+        ItemProd it = listaSugerencias.getSelectedValue();
+        if (!popupSugerencias.isVisible() || it == null || it.vacio) return;
+
+        if (yaEstaAgregado(it.id)) {
+            aviso("Ese producto ya está en la promoción.");
+            return;
+        }
+
+        modeloProductos.addElement(it);
+        txtBuscarProd.setText("");              // limpia y oculta el popup
+        popupSugerencias.setVisible(false);
         actualizarResumen();
+        txtBuscarProd.requestFocusInWindow();   // listo para el siguiente producto
     }
 
     private void actualizarResumen() {
+        lblProductos.setText("Productos de la promoción (" + modeloProductos.size() + ")");
+
         if (modeloProductos.isEmpty()) {
             lblResumen.setText(" ");
             return;
@@ -456,11 +513,11 @@ soloNumeros(txtPrecioPaquete, true);   // precio: decimales (máx. 2)
             double ahorro = normal - paquete;
 
             if (ahorro > 0) {
-                lblResumen.setForeground(new Color(0, 128, 0));
-                lblResumen.setText(String.format("Normal: $%.2f  |  Paquete: $%.2f  |  Ahorro: $%.2f", normal, paquete, ahorro));
+                EstiloPromociones.resumenConviene(lblResumen,
+                        String.format("Normal: $%.2f  |  Paquete: $%.2f  |  Ahorro: $%.2f", normal, paquete, ahorro));
             } else {
-                lblResumen.setForeground(new Color(200, 0, 0));
-                lblResumen.setText("El paquete no conviene: cuesta igual o más que el precio normal.");
+                EstiloPromociones.resumenNoConviene(lblResumen,
+                        "El paquete no conviene: cuesta igual o más que el precio normal.");
             }
         } catch (NumberFormatException ex) {
             lblResumen.setText(" ");
@@ -527,7 +584,7 @@ soloNumeros(txtPrecioPaquete, true);   // precio: decimales (máx. 2)
         dcInicio.setDate(aDate(hoy));
         dcFin.setDate(aDate(hoy));
         modeloProductos.clear();
-        lblResumen.setText(" ");
+        actualizarResumen();
         tabla.clearSelection();
         txtDescripcion.requestFocus();
     }

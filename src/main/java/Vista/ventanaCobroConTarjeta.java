@@ -7,6 +7,8 @@ import javax.swing.*;
 import java.awt.*;
 import Estilos.Estilos;
 import Modelo.Eventos;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import static Vista.Sistema.txtCodigoVenta;
 
 public final class ventanaCobroConTarjeta extends JDialog {
@@ -24,7 +26,25 @@ public final class ventanaCobroConTarjeta extends JDialog {
         setTitle("Pago con Tarjeta");
         setSize(350, 240);
         setLocationRelativeTo(ventana);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        
+                addWindowListener(new WindowAdapter() {
 
+            @Override
+            public void windowClosing(WindowEvent e) {
+                SwingUtilities.invokeLater(() -> {
+                    ventanaPrincipal.enfocarCampoEfectivo();
+                });
+            }
+
+            @Override
+            public void windowClosed(WindowEvent e) {
+                SwingUtilities.invokeLater(() -> {
+                    ventanaPrincipal.enfocarCampoEfectivo();
+                });
+            }
+        });
+        
         PanelConEstilo panelRaiz = new PanelConEstilo();
         panelRaiz.setLayout(new GridLayout(5, 1, 10, 10));
 

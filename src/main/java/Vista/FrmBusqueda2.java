@@ -8,15 +8,16 @@ import Modelo.ProductosDao;
 import static Vista.Sistema.TableVenta;
 import static Vista.Sistema.lblEnviaTotal;
 import static Vista.Sistema.txtCodigoVenta;
-import java.awt.KeyboardFocusManager;
 import java.awt.event.KeyEvent;
-import java.awt.KeyEventPostProcessor;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import javax.swing.AbstractAction;
+import javax.swing.JComponent;
 import javax.swing.JOptionPane;
 import javax.swing.JTable;
+import javax.swing.KeyStroke;
 import javax.swing.Timer;
 import javax.swing.table.DefaultTableModel;
 import Vista.VentanaCantidadBusqueda;
@@ -27,57 +28,67 @@ import Vista.VentanaCantidadBusqueda;
  */
 public class FrmBusqueda2 extends javax.swing.JFrame {
     public String origen = "venta"; // declarado arriba
-private int idEmpresaActiva;
+    private int idEmpresaActiva;
 
-public void setIdEmpresaActiva(int idEmpresa) {
-    this.idEmpresaActiva = idEmpresa;
-}
-   private Timer timer;
-        Connection con;
+    public void setIdEmpresaActiva(int idEmpresa) {
+        this.idEmpresaActiva = idEmpresa;
+    }
+
+    private Timer timer;
+    Connection con;
     Conexion cn = new Conexion();
     PreparedStatement ps;
     ResultSet rs;
-    DefaultTableModel modelo = new DefaultTableModel(); 
+    DefaultTableModel modelo = new DefaultTableModel();
 
-   Productos pro = new Productos();
+    Productos pro = new Productos();
     ProductosDao proDao = new ProductosDao();
-     String mayus;
-      double TotalPagar = 0.00;
+    String mayus;
+    double TotalPagar = 0.00;
+
     /**
      * Creates new form FrmBusqueda
      */
    public FrmBusqueda2(int idEmpresa, String origen) {
     initComponents();
 
-    this.idEmpresaActiva = idEmpresa; // asignamos la empresa activa
-    this.origen = origen; // asignamos el origen de la ventana
+    this.idEmpresaActiva = idEmpresa;
+    this.origen = origen;
 
     // Aplica estilo a la tabla
     Estilos.estiloTablas(TableProductoJF);
-    mostrarEstadoInicial();   // 👈 al abrir, antes de escribir nada
+    mostrarEstadoInicial();
 
-    // Agregar KeyEventPostProcessor para detectar ESCAPE solo una vez
-    KeyboardFocusManager kb = KeyboardFocusManager.getCurrentKeyboardFocusManager();
-    kb.addKeyEventPostProcessor(new KeyEventPostProcessor() {
+    // ESC cierra la ventana de búsqueda
+    KeyStroke esc = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
+    getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+            .put(esc, "cerrarBusqueda");
+
+    getRootPane().getActionMap().put("cerrarBusqueda", new AbstractAction() {
         @Override
-        public boolean postProcessKeyEvent(KeyEvent e) {
-            if (e.getID() == KeyEvent.KEY_PRESSED && e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-                dispose();
-                txtCodigoVenta.requestFocus();
-                return false; // Consume el evento para que no siga
-            }
-            return true;
+        public void actionPerformed(java.awt.event.ActionEvent e) {
+            dispose();
+        }
+    });
+
+    // Al cerrar la ventana (X, ESC o dispose),
+    // regresar el foco al campo Código de la venta
+    addWindowListener(new java.awt.event.WindowAdapter() {
+        @Override
+        public void windowClosed(java.awt.event.WindowEvent e) {
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                txtCodigoVenta.requestFocusInWindow();
+            });
         }
     });
 
     txtBuscar.requestFocus();
     this.setLocationRelativeTo(null);
+    this.setAlwaysOnTop(true);
     txtCantidadVenta.setVisible(false);
     jLabel5.setVisible(false);
     txtcodigo.setVisible(false);
 }
-
-   
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">                          
     private void initComponents() {
@@ -282,33 +293,26 @@ public void setIdEmpresaActiva(int idEmpresa) {
     }// </editor-fold>                        
 
     private void TableProductoJFMouseClicked(java.awt.event.MouseEvent evt) {                                             
-     
+
     }                                            
 
     private void TableProductoJFKeyPressed(java.awt.event.KeyEvent evt) {                                           
-
-  if(evt.getKeyCode() == KeyEvent.VK_ENTER){
-        evt.consume(); // para que no haga la acción por defecto (como cambiar fila)
-        EnterBusqueda();
-    }
-
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            evt.consume(); // para que no haga la acción por defecto (como cambiar fila)
+            EnterBusqueda();
+        }
     }                                          
 
-    
-       
-    
-    
     private void txtCantidadVentaActionPerformed(java.awt.event.ActionEvent evt) {                                                 
         // TODO add your handling code here:
     }                                                
 
     private void txtCantidadVentaKeyPressed(java.awt.event.KeyEvent evt) {                                            
         // TODO add your handling code here:
-      
     }                                           
 
     private void txtCantidadVentaKeyTyped(java.awt.event.KeyEvent evt) {                                          
-    
+
     }                                         
 
     private void txtBuscarActionPerformed(java.awt.event.ActionEvent evt) {                                          
@@ -316,7 +320,7 @@ public void setIdEmpresaActiva(int idEmpresa) {
     }                                         
 
     private void txtBuscarKeyPressed(java.awt.event.KeyEvent evt) {                                     
-  if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
+        if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
             if (TableProductoJF.getRowCount() > 0) {
                 TableProductoJF.requestFocus();
                 TableProductoJF.setRowSelectionInterval(0, 0);
@@ -325,37 +329,37 @@ public void setIdEmpresaActiva(int idEmpresa) {
     }
 
     public void EnterBusqueda() {
-       int fila = TableProductoJF.getSelectedRow();
+        int fila = TableProductoJF.getSelectedRow();
 
-    if (fila == -1) {
-        JOptionPane.showMessageDialog(null, "No se seleccionó ninguna fila");
-        return;
-    }
+        if (fila == -1) {
+            JOptionPane.showMessageDialog(null, "No se seleccionó ninguna fila");
+            return;
+        }
 
-    String codigoSeleccionado = TableProductoJF.getValueAt(fila, 1).toString();
+        String codigoSeleccionado = TableProductoJF.getValueAt(fila, 1).toString();
 
-    // 🔍 Consultamos el producto completo para conocer su categoría
-    Productos productoCompleto = proDao.BuscarPro(codigoSeleccionado, idEmpresaActiva);
+        // 🔍 Consultamos el producto completo para conocer su categoría
+        Productos productoCompleto = proDao.BuscarPro(codigoSeleccionado, idEmpresaActiva);
 
-    // 🥬 Si es de Verdulería, saltamos VentanaCantidadBusqueda y vamos
-    // directo al panel de detalle con báscula/peso.
-    if (productoCompleto != null
-            && productoCompleto.getCategoria() != null
-            && "verduleria".equalsIgnoreCase(productoCompleto.getCategoria().trim())) {
+        // 🥬 Si es de Verdulería, saltamos VentanaCantidadBusqueda y vamos
+        // directo al panel de detalle con báscula/peso.
+        if (productoCompleto != null
+                && productoCompleto.getCategoria() != null
+                && "verduleria".equalsIgnoreCase(productoCompleto.getCategoria().trim())) {
 
-        Sistema.getInstancia().abrirDetalleVerduleria(productoCompleto);
-        dispose(); // cerrar la ventana de búsqueda
-        return;
-    }
+            Sistema.getInstancia().abrirDetalleVerduleria(productoCompleto);
+            dispose(); // cerrar la ventana de búsqueda
+            return;
+        }
 
-    // 🔁 Flujo normal (no Verdulería): igual que antes
-    VentanaCantidadBusqueda consulta = new VentanaCantidadBusqueda();
-    consulta.sedDato(codigoSeleccionado);
-    consulta.origen = this.origen;
-    VentanaCantidadBusqueda.setIdEmpresaActiva(this.idEmpresaActiva);
-    consulta.setVisible(true);
+        // 🔁 Flujo normal (no Verdulería): igual que antes
+        VentanaCantidadBusqueda consulta = new VentanaCantidadBusqueda();
+        consulta.sedDato(codigoSeleccionado);
+        consulta.origen = this.origen;
+        VentanaCantidadBusqueda.setIdEmpresaActiva(this.idEmpresaActiva);
+        consulta.setVisible(true);
 
-    dispose();
+        dispose();
     }                                    
 
     private void txtBuscarKeyReleased(java.awt.event.KeyEvent evt) {                                      
@@ -369,11 +373,11 @@ public void setIdEmpresaActiva(int idEmpresa) {
             timer.setRepeats(false);
             timer.start();
         } else {
-    DefaultTableModel modeloVacio = new DefaultTableModel();
-    modeloVacio.setColumnIdentifiers(new Object[]{"id", "codigo", "nombre", "stock", "precio"});
-    TableProductoJF.setModel(modeloVacio);
-    mostrarEstadoInicial();   // 👈 al borrar todo el texto
-}
+            DefaultTableModel modeloVacio = new DefaultTableModel();
+            modeloVacio.setColumnIdentifiers(new Object[]{"id", "codigo", "nombre", "stock", "precio"});
+            TableProductoJF.setModel(modeloVacio);
+            mostrarEstadoInicial();   // al borrar todo el texto
+        }
 
         // Al presionar flecha abajo, pasar foco y seleccionar primera fila
         if (evt.getKeyCode() == KeyEvent.VK_DOWN && TableProductoJF.getRowCount() > 0) {
@@ -388,40 +392,36 @@ public void setIdEmpresaActiva(int idEmpresa) {
     }                                  
 
     private void TableProductoJFKeyTyped(java.awt.event.KeyEvent evt) {                                         
-        
- //if(evt.getKeyCode() == evt.VK_ENTER){
-   //      evt.consume();
-     //}
-int fila = TableProductoJF.getSelectedRow();
-      if(fila == -1){
-          txtBuscar.requestFocus();
-     JOptionPane.showMessageDialog(null,"No se selecciono ningna fila");
-        }else{
-          // EnterBusqueda();      
-        }            // TODO add your handling code here:
-  
-      
+        int fila = TableProductoJF.getSelectedRow();
+        if (fila == -1) {
+            txtBuscar.requestFocus();
+            JOptionPane.showMessageDialog(null, "No se selecciono ningna fila");
+        } else {
+            // EnterBusqueda();
+        }
     }                                        
+
     private final EmptyBusquedaInicial emptyInicial = new EmptyBusquedaInicial();
     private final EmptyBusquedaSinResultados emptySinResultados = new EmptyBusquedaSinResultados();
+
     private void mostrarEstadoInicial() {
-    jScrollPane8.setColumnHeaderView(null);          // oculta el encabezado azul de la tabla
-    jScrollPane8.setViewportView(emptyInicial);
+        jScrollPane8.setColumnHeaderView(null);          // oculta el encabezado azul de la tabla
+        jScrollPane8.setViewportView(emptyInicial);
     }
 
     private void mostrarSinResultados(String termino) {
-    emptySinResultados.setTermino(termino);
-    jScrollPane8.setColumnHeaderView(null);
-    jScrollPane8.setViewportView(emptySinResultados);
+        emptySinResultados.setTermino(termino);
+        jScrollPane8.setColumnHeaderView(null);
+        jScrollPane8.setViewportView(emptySinResultados);
     }
 
     private void mostrarTabla() {
-    jScrollPane8.setViewportView(TableProductoJF);
-    jScrollPane8.setColumnHeaderView(TableProductoJF.getTableHeader());
+        jScrollPane8.setViewportView(TableProductoJF);
+        jScrollPane8.setColumnHeaderView(TableProductoJF.getTableHeader());
     }
-    
+
     private void TableProductoJFPropertyChange(java.beans.PropertyChangeEvent evt) {                                               
-      // TODO add your handling code here:
+        // TODO add your handling code here:
     }                                              
 
     private void TableProductoJFCaretPositionChanged(java.awt.event.InputMethodEvent evt) {                                                     
@@ -429,16 +429,15 @@ int fila = TableProductoJF.getSelectedRow();
     }                                                    
 
     private void TableProductoJFKeyReleased(java.awt.event.KeyEvent evt) {                                            
-       // TODO add your handling code here:
+        // TODO add your handling code here:
     }                                           
 
     private void formKeyReleased(java.awt.event.KeyEvent evt) {                                 
-
-              // TODO add your handling code here:
+        // TODO add your handling code here:
     }                                
 
     private void formKeyPressed(java.awt.event.KeyEvent evt) {                                
-       // TODO add your handling code here:
+        // TODO add your handling code here:
     }                               
 
     private void txtcodigoActionPerformed(java.awt.event.ActionEvent evt) {                                          
@@ -457,120 +456,117 @@ int fila = TableProductoJF.getSelectedRow();
      * @param args the command line arguments
      */
     public static void main(String args[]) {
-      /* Set the Nimbus look and feel */
-    try {
-        for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-            if ("Nimbus".equals(info.getName())) {
-                javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                break;
+        /* Set the Nimbus look and feel */
+        try {
+            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+                if ("Nimbus".equals(info.getName())) {
+                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
+                    break;
+                }
             }
+        } catch (Exception ex) {
+            java.util.logging.Logger.getLogger(FrmBusqueda2.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
-    } catch (Exception ex) {
-        java.util.logging.Logger.getLogger(FrmBusqueda2.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+
+        /* Create and display the form */
+        java.awt.EventQueue.invokeLater(new Runnable() {
+            public void run() {
+                int idEmpresaPrueba = 1;       // ejemplo de empresa activa
+                String origenPrueba = "venta"; // ejemplo de origen
+                new FrmBusqueda2(idEmpresaPrueba, origenPrueba).setVisible(true);
+            }
+        });
     }
 
-    /* Create and display the form */
-    java.awt.EventQueue.invokeLater(new Runnable() {
-        public void run() {
-            int idEmpresaPrueba = 1;       // ejemplo de empresa activa
-            String origenPrueba = "venta"; // ejemplo de origen
-            new FrmBusqueda2(idEmpresaPrueba, origenPrueba).setVisible(true);
-        }
-    });
-    }
-
-  
-  //suma las filas de la tabla venta
-   public void TotalPagarX() {
+    // suma las filas de la tabla venta
+    public void TotalPagarX() {
         TotalPagar = 0.00;
         int numFila = TableVenta.getRowCount();
         for (int i = 0; i < numFila; i++) {
             double cal = Double.parseDouble(String.valueOf(TableVenta.getModel().getValueAt(i, 4)));
-            
+
             TotalPagar = TotalPagar + cal;
         }
         lblEnviaTotal.setText(String.format("%.2f", TotalPagar));
     }
-   
-  
-    
- 
-public void listar() {
-    DefaultTableModel modelo = new DefaultTableModel();
-    Connection nuevaConexion = null;
-    PreparedStatement ps = null;
-    ResultSet rs = null;
 
-    // Obtener el texto de búsqueda y limpiar espacios
-    String textoBusqueda = txtBuscar.getText().trim().toLowerCase().replaceAll("\\s+", "");
+    public void listar() {
+        DefaultTableModel modelo = new DefaultTableModel();
+        Connection nuevaConexion = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
 
-    // Query filtrando por id_empresa
-    String sql = "SELECT * FROM productos " +
-                 "WHERE (CAST(id AS CHAR) LIKE ? " +
-                 "OR LOWER(codigo) LIKE ? " +
-                 "OR REPLACE(LOWER(nombre), ' ', '') LIKE ? " +
-                 "OR precio LIKE ?) " +
-                 "AND id_empresa = ?";
+        // Obtener el texto de búsqueda y limpiar espacios
+        String textoBusqueda = txtBuscar.getText().trim().toLowerCase().replaceAll("\\s+", "");
 
-    try { Conexion conexion = new Conexion();
-        nuevaConexion = conexion.getConnection();
+        // Query filtrando por id_empresa
+        String sql = "SELECT * FROM productos " +
+                     "WHERE (CAST(id AS CHAR) LIKE ? " +
+                     "OR LOWER(codigo) LIKE ? " +
+                     "OR REPLACE(LOWER(nombre), ' ', '') LIKE ? " +
+                     "OR precio LIKE ?) " +
+                     "AND id_empresa = ?";
 
-        ps = nuevaConexion.prepareStatement(sql);
-        String searchTerm = "%" + textoBusqueda + "%";
-
-        ps.setString(1, searchTerm);
-        ps.setString(2, searchTerm);
-        ps.setString(3, searchTerm);
-        ps.setString(4, searchTerm);
-        ps.setInt(5, idEmpresaActiva); // empresa activa
-
-        rs = ps.executeQuery();
-
-        // DEBUG: imprimir valores para verificar
-        System.out.println("Buscando: " + textoBusqueda);
-        System.out.println("Empresa activa: " + idEmpresaActiva);
-
-        modelo.setColumnIdentifiers(new Object[]{"id", "codigo", "nombre", "stock", "precio"});
-
-        while (rs.next()) {
-            System.out.println(rs.getString("id") + " - " + rs.getString("nombre") + " - " + rs.getInt("id_empresa"));
-            modelo.addRow(new Object[]{
-                rs.getString("id"),
-                rs.getString("codigo"),
-                rs.getString("nombre"),
-                rs.getString("stock"),
-                rs.getString("precio")
-            });
-        }
-
-        TableProductoJF.setModel(modelo);
-        TableProductoJF.getColumnModel().getColumn(0).setPreferredWidth(50);
-        TableProductoJF.getColumnModel().getColumn(1).setPreferredWidth(100);
-        TableProductoJF.getColumnModel().getColumn(2).setPreferredWidth(300);
-        TableProductoJF.getColumnModel().getColumn(3).setPreferredWidth(50);
-        TableProductoJF.getColumnModel().getColumn(4).setPreferredWidth(70);
-        TableProductoJF.setRowHeight(30);
-        Estilos.estiloTablas(TableProductoJF);
-
-        if (modelo.getRowCount() == 0) {
-        mostrarSinResultados(txtBuscar.getText().trim());   // grillo
-        } else {
-        mostrarTabla();                                     // resultados
-        }
-    } catch (Exception e) {
-        JOptionPane.showMessageDialog(null, "Error al cargar los productos: " + e.getMessage());
-    } finally {
         try {
-            if (rs != null) rs.close();
-            if (ps != null) ps.close();
-            if (nuevaConexion != null && !nuevaConexion.isClosed()) nuevaConexion.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
+            Conexion conexion = new Conexion();
+            nuevaConexion = conexion.getConnection();
+
+            ps = nuevaConexion.prepareStatement(sql);
+            String searchTerm = "%" + textoBusqueda + "%";
+
+            ps.setString(1, searchTerm);
+            ps.setString(2, searchTerm);
+            ps.setString(3, searchTerm);
+            ps.setString(4, searchTerm);
+            ps.setInt(5, idEmpresaActiva); // empresa activa
+
+            rs = ps.executeQuery();
+
+            // DEBUG: imprimir valores para verificar
+            System.out.println("Buscando: " + textoBusqueda);
+            System.out.println("Empresa activa: " + idEmpresaActiva);
+
+            modelo.setColumnIdentifiers(new Object[]{"id", "codigo", "nombre", "stock", "precio"});
+
+            while (rs.next()) {
+                System.out.println(rs.getString("id") + " - " + rs.getString("nombre") + " - " + rs.getInt("id_empresa"));
+                modelo.addRow(new Object[]{
+                    rs.getString("id"),
+                    rs.getString("codigo"),
+                    rs.getString("nombre"),
+                    rs.getString("stock"),
+                    rs.getString("precio")
+                });
+            }
+
+            TableProductoJF.setModel(modelo);
+            TableProductoJF.getColumnModel().getColumn(0).setPreferredWidth(50);
+            TableProductoJF.getColumnModel().getColumn(1).setPreferredWidth(100);
+            TableProductoJF.getColumnModel().getColumn(2).setPreferredWidth(300);
+            TableProductoJF.getColumnModel().getColumn(3).setPreferredWidth(50);
+            TableProductoJF.getColumnModel().getColumn(4).setPreferredWidth(70);
+            TableProductoJF.setRowHeight(30);
+            Estilos.estiloTablas(TableProductoJF);
+
+            if (modelo.getRowCount() == 0) {
+                mostrarSinResultados(txtBuscar.getText().trim());   // sin resultados
+            } else {
+                mostrarTabla();                                     // resultados
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "Error al cargar los productos: " + e.getMessage());
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (ps != null) ps.close();
+                if (nuevaConexion != null && !nuevaConexion.isClosed()) nuevaConexion.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
-}
 
-       
+
     // Variables declaration - do not modify                     
     public static javax.swing.JTable TableProductoJF;
     private javax.swing.JLabel jLabel5;

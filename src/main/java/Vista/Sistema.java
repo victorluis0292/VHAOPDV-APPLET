@@ -142,6 +142,10 @@ private boolean ajusteActivado = false;
 //
 private JLabel lblVersion;
 
+//
+private FrmBusqueda2 ventanaBusqueda;
+
+
 public static void setUsuarioActivo(String usuario) {
     usuarioActivo = usuario;
 }
@@ -660,8 +664,27 @@ for (int i = 0; i < jPanelMenuCorte.getComponentCount(); i++) {
 // 🔹 CARGAR DATOS EN EL PANEL DE VERDULERÍA YA EXISTENTE (`panelVerduleria`)
 refrescarPanelVerduleria();
 cargarPromosVigentes();
-activarAjusteAutomatico();  
+activarAjusteAutomatico(); 
+    instalarLogFoco();
 } 
+private String nombreComp(Object o) {
+    if (o == null) return "null";
+    if (o == txtCodigoVenta) return "txtCodigoVenta";
+    if (o == txtPaga1) return "txtPaga1 (oculto)";
+    if (o == txtRucVenta) return "txtRucVenta";
+    if (o == TableVenta) return "TableVenta";
+    if (o == btnCobrar) return "btnCobrar";
+    if (o == btnBusccarPro) return "btnBusccarPro";
+    return o.getClass().getSimpleName();
+}
+
+private void instalarLogFoco() {
+    KeyboardFocusManager.getCurrentKeyboardFocusManager()
+        .addPropertyChangeListener("permanentFocusOwner", evt -> {
+            System.out.println("[FOCO] " + nombreComp(evt.getOldValue())
+                + "  ->  " + nombreComp(evt.getNewValue()));
+        });
+}
 private void refrescarPanelVerduleria() {
     try {
         List<Productos> listaPro = proDao.ListarProductos(idEmpresaActiva);
@@ -3141,25 +3164,25 @@ lg.setIdEmpresa(Sistema.getIdEmpresaActiva());
     }//GEN-LAST:event_txtRucVentaKeyTyped
 
     private void txtRucVentaKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_txtRucVentaKeyPressed
-        //original
-   EnterClienteVenta();
-       
+            EnterClienteVenta(true); 
     }//GEN-LAST:event_txtRucVentaKeyPressed
 
- public void EnterClienteVenta() {
+public void EnterClienteVenta(boolean moverFoco) {
     if (!"".equals(txtRucVenta.getText())) {
         int dni = Integer.parseInt(txtRucVenta.getText());
         cl = client.BuscarCliente(dni, usuarioLogueado.getIdEmpresa());
         if (cl.getNombre() != null) {
             txtNombreClienteventa.setText(cl.getNombre());
             txtIdCV.setText(String.valueOf(cl.getId()));
-            txtPaga1.requestFocus();
+            if (moverFoco) {
+                System.out.println("[LOG] EnterClienteVenta pidiendo foco para txtPaga1");
+                txtPaga1.requestFocus();
+            }
         } else {
             txtRucVenta.setText("");
-           // JOptionPane.showMessageDialog(null, "El cliente no existe en esta empresa");
         }
     }
-}                                     
+}                             
 
     private void btnEliminarventaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarventaActionPerformed
        int fila = TableVenta.getSelectedRow();
@@ -3284,9 +3307,14 @@ public void abrirVentanaCobrar() {
         String texto = txtCodigoVenta.getText().trim();
 
         if (texto.isEmpty()) {
-            JOptionPane.showMessageDialog(null, "Ingrese el código o ID del producto");
-            return;
-        }
+    //JOptionPane.showMessageDialog(this, "Ingrese el código o ID del producto");
+    //SwingUtilities.invokeLater(() -> txtCodigoVenta.requestFocusInWindow());
+        java.awt.Toolkit.getDefaultToolkit().beep();
+
+    return;
+}
+        
+        
 
         // 🥬 Interceptar: si coincide con un producto de Verdulería (nombre, código o ID),
         // abrir el panel de detalle con báscula/peso en vez de agregar directo a la tabla.
@@ -3714,20 +3742,33 @@ Menu.setSelectedIndex(8);
     }//GEN-LAST:event_TableVentaKeyPressed
 
     private void btnBusccarProActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBusccarProActionPerformed
-   // Definir el origen antes de crear la ventana
+       abrirVentanaBuscar();
+    }//GEN-LAST:event_btnBusccarProActionPerformed
+// campo de la clase Sistema
+
+private void abrirVentanaBuscar() {
     origenActual = "venta";
 
-    // Crear FrmBusqueda pasando idEmpresaActiva y origenActual
-    FrmBusqueda2 BuscarProd = new FrmBusqueda2(this.idEmpresaActiva, origenActual);
-    BuscarProd.setVisible(true);
-    
-    }//GEN-LAST:event_btnBusccarProActionPerformed
-private void abrirVentanaBuscar() {
+    // Si ya existe, solo la traemos al frente
+    if (ventanaBusqueda != null && ventanaBusqueda.isDisplayable()) {
+        ventanaBusqueda.setVisible(true);
+        ventanaBusqueda.setState(java.awt.Frame.NORMAL);
+        ventanaBusqueda.toFront();
+        ventanaBusqueda.requestFocus();
+        return;
+    }
+
     System.out.println("Abriendo FrmBusqueda con empresa activa: " + this.idEmpresaActiva
                        + " y origen: " + this.origenActual);
 
-    FrmBusqueda2 busqueda = new FrmBusqueda2(this.idEmpresaActiva, this.origenActual);
-    busqueda.setVisible(true);
+    ventanaBusqueda = new FrmBusqueda2(this.idEmpresaActiva, this.origenActual);
+    ventanaBusqueda.addWindowListener(new java.awt.event.WindowAdapter() {
+        @Override
+        public void windowClosed(java.awt.event.WindowEvent e) {
+            ventanaBusqueda = null; // al cerrarse, la próxima vez se crea una nueva
+        }
+    });
+    ventanaBusqueda.setVisible(true);
 }
 
 
@@ -3836,15 +3877,17 @@ private void abrirVentanaBuscar() {
     }//GEN-LAST:event_jButton2ActionPerformed
 
     private void formWindowActivated(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowActivated
-//TotalPagarCreditoCliente();
-    if (sistemaYaIniciado) cargarPromosVigentes();        
+if (sistemaYaIniciado) cargarPromosVigentes();
     TotalPagarX();
-        EnterClienteVenta();
-        EnterClienteCredit();
-        
+    EnterClienteVenta(false);
+    EnterClienteCredit();
 
-// TODO add your handling code here:
-
+    // devolver el foco al campo código si estamos en Nueva Venta
+    if (sistemaYaIniciado && Menu.getSelectedIndex() == 0) {
+        SwingUtilities.invokeLater(() -> {
+            txtCodigoVenta.requestFocusInWindow();
+        });
+    }
     }//GEN-LAST:event_formWindowActivated
 
     private void formComponentShown(java.awt.event.ComponentEvent evt) {//GEN-FIRST:event_formComponentShown

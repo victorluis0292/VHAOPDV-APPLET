@@ -133,8 +133,24 @@ public final class ventanaCobrar extends JDialog {
 
     private void initComponentes() {
         setTitle("Pago");
-        setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+            setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 
+            addWindowListener(new WindowAdapter() {
+
+    @Override
+    public void windowClosing(WindowEvent e) {
+        SwingUtilities.invokeLater(() -> {
+            Sistema.txtCodigoVenta.requestFocusInWindow();
+        });
+    }
+
+    @Override
+    public void windowClosed(WindowEvent e) {
+        SwingUtilities.invokeLater(() -> {
+            Sistema.txtCodigoVenta.requestFocusInWindow();
+        });
+    }
+});
         setLayout(new BorderLayout(10, 10));
         Estilos.PanelConEstilo panel = new Estilos.PanelConEstilo();
         panel.setLayout(new GridLayout(5, 2, 10, 10));
@@ -559,9 +575,11 @@ public final class ventanaCobrar extends JDialog {
     }
 
     public void enfocarCampoEfectivo() {
-        txtPaga.requestFocus();
-    }
-
+    SwingUtilities.invokeLater(() -> {
+        txtPaga.requestFocusInWindow();
+        txtPaga.selectAll(); // opcional
+    });
+}
     private String determinarTipoPagoFinal() {
         boolean hayEfectivo = false;
         boolean hayTarjeta = false;
