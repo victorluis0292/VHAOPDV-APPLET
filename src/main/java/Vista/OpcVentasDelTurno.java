@@ -45,37 +45,39 @@ public void cargarVentasDelTurno() {
         int turnoId = turno.getId();
 
         // Total ventas
-        try (PreparedStatement ps = con.prepareStatement(
-                "SELECT SUM(total) AS total_ventas FROM ventas WHERE id_turno = ?")) {
-            ps.setInt(1, turnoId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    ventasTotal = rs.getDouble("total_ventas");
-                }
-            }
+    
+try (PreparedStatement ps = con.prepareStatement(
+        "SELECT SUM(total) AS total_ventas FROM ventas WHERE id_turno = ? AND cancelada = 0")) {
+    ps.setInt(1, turnoId);
+    try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+            ventasTotal = rs.getDouble("total_ventas");
         }
+    }
+}
 
-        // Ventas en efectivo
-        try (PreparedStatement ps = con.prepareStatement(
-                "SELECT SUM(total) AS total_efectivo FROM ventas WHERE id_turno = ? AND tipopago = 'Efectivo'")) {
-            ps.setInt(1, turnoId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    ventasEfectivo = rs.getDouble("total_efectivo");
-                }
-            }
+// Ventas en efectivo
+try (PreparedStatement ps = con.prepareStatement(
+        "SELECT SUM(total) AS total_efectivo FROM ventas WHERE id_turno = ? AND tipopago = 'Efectivo' AND cancelada = 0")) {
+    ps.setInt(1, turnoId);
+    try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+            ventasEfectivo = rs.getDouble("total_efectivo");
         }
+    }
+}
 
-        // Ventas con tarjeta
-        try (PreparedStatement ps = con.prepareStatement(
-                "SELECT SUM(total) AS total_tarjeta FROM ventas WHERE id_turno = ? AND tipopago = 'Tarjeta'")) {
-            ps.setInt(1, turnoId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    ventasTarjeta = rs.getDouble("total_tarjeta");
-                }
-            }
+// Ventas con tarjeta
+try (PreparedStatement ps = con.prepareStatement(
+        "SELECT SUM(total) AS total_tarjeta FROM ventas WHERE id_turno = ? AND tipopago = 'Tarjeta' AND cancelada = 0")) {
+    ps.setInt(1, turnoId);
+    try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+            ventasTarjeta = rs.getDouble("total_tarjeta");
         }
+    }
+}
+      
 
         lblEfectivo.setText("Venta en efectivo: $" + String.format("%.2f", ventasEfectivo));
         lblTarjeta.setText("Venta en tarjeta: $" + String.format("%.2f", ventasTarjeta));

@@ -1,0 +1,153 @@
+[33mcommit 9d322c6ca45239403610dd125feb067a5e9e57ab[m[33m ([m[1;36mHEAD -> [m[1;32mdev[m[33m, [m[1;31morigin/dev[m[33m)[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Wed Nov 4 18:00:46 2026 -0600
+
+    fix pipe en ventas
+
+[33mcommit c3e36398a377f41d848baee7c4db7bb7748e5289[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Fri Oct 23 17:57:40 2026 -0600
+
+    fix banners clientes con adeudo
+
+[33mcommit dd4427f7bfa19d1418fb2f449ac29bbcb1b881ef[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Fri Oct 23 02:07:36 2026 -0600
+
+    add modulo banners en ventana ventas cliente credito fiado
+
+[33mcommit 971df9f56aab558e82387a000428927f95875424[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Thu Oct 22 01:41:49 2026 -0600
+
+    add generador de codigo de barras
+
+[33mcommit cdd6c407013fa71babc20b74336779b7667616e2[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Wed Oct 21 01:48:35 2026 -0600
+
+    fix version app para actualizar
+
+[33mcommit dd8d0ce7698911df9986811fd498357278d51939[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Wed Oct 21 00:35:30 2026 -0600
+
+    fix abono  por producto y por categoria + fix datos de empresa
+
+[33mcommit ee02507c72e8cfe9bae694a27a63cb093f15bfa5[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sun Oct 18 03:47:30 2026 -0600
+
+    add  module promociones
+
+[33mcommit 1fba3f0383df2ef1b46175e9948b7ca58d7435bd[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sat Oct 17 17:28:09 2026 -0600
+
+    add empty state on search and fix cache images and fix version app desktop
+
+[33mcommit 34a0927ec53dd200324bc874b7a955ddabc9cf86[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sun Sep 13 00:04:14 2026 -0600
+
+    add export and import excel
+
+[33mcommit bffc2e292161b15f166db24ba8e18aee51d897bd[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sun Aug 16 01:40:50 2026 -0600
+
+    fix conexion and leyenda actualizar
+
+[33mcommit ee4455a8dd0062111f92202e9c1cb84068796718[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sun Aug 16 01:21:23 2026 -0600
+
+    fix category and  reset box creditclient
+
+[33mcommit c3abe07c09fce8d5187be3bad7c2c62205de37a8[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Fri Aug 14 03:41:17 2026 -0600
+
+    fix credito cliente , fix vista productos front
+
+[33mcommit fe33c470bc2e5d0e6026535625b74c9b7f2d6365[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Tue Aug 11 03:22:36 2026 -0600
+
+    fix impresion credito cliente y add impresora
+
+[33mcommit da85918d45c5751942b45708a5667fc96e517a3a[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sat Aug 8 03:24:55 2026 -0600
+
+    Ignorar nbproject en git
+
+[33mcommit cc4728c66a098f7ded9e29d96616764b6258f322[m
+Merge: 7900f4c bcd4670
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sat Aug 8 03:20:18 2026 -0600
+
+    Merge: conservar cambios de vhaopuntodeventa_dev en dev
+
+[33mcommit bcd4670e656b218de8f2e25706ca7ba06581ab5c[m[33m ([m[1;32mvhaopuntodeventa_dev[m[33m)[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sat Aug 8 03:11:36 2026 -0600
+
+    Actualización de conexion_log.txt
+
+[33mcommit a0fd70d637f57af1b73752185b4c1063e61faa80[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sat Aug 8 03:10:31 2026 -0600
+
+    Ignorar target/ en git
+
+[33mcommit 7900f4c941b30d72960701e89c6b6e6f298c8f5d[m
+Merge: d09a68d 51fe3d0
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sat Aug 8 02:51:38 2026 -0600
+
+    Merge branch 'dev' of https://github.com/victorluis0292/VHAOPDV-APPLET into dev
+
+[33mcommit d09a68d773a96a19634ecd144bdcb261498fdf11[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sat Aug 8 02:50:50 2026 -0600
+
+    vhao PDV applet update dev
+
+[33mcommit 51fe3d09087a02a91849589e35142bfafbeb14db[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sat Aug 8 02:49:59 2026 -0600
+
+    Delete VhaoPuntoDeVenta directory
+
+[33mcommit 830905ebe0e35be1e28c27b0d9a8f8101c31506d[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sat Aug 8 02:47:59 2026 -0600
+
+    Delete Documents directory
+
+[33mcommit bb602588fe70f1c7fc16f00639e0fe81255b6ad5[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sat Aug 8 02:42:30 2026 -0600
+
+    WIP: cambios en VentaDao
+
+[33mcommit 25c2b321b400f68b6852c6ee008de963f00aa7a7[m[33m ([m[1;32mDEV2[m[33m)[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Sat Aug 8 03:14:58 2026 -0500
+
+    v3.0 R1-08082026
+     DESACOPLE CREDITO CLIENTE
+
+[33mcommit 87f83b426256fd08013d79cddbabd2995b5edb15[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Fri Jan 2 20:54:37 2026 -0600
+
+    v3.0 R1-02012026
+     fix rol asistente puede modificar producto con clave admin 2
+
+[33mcommit 2cfa12cc60ef3c9f9a17e743c2a3c2836d116d08[m
+Author: victorluis0292 <vitroidmx@gmail.com>
+Date:   Fri Jan 2 20:14:58 2026 -0600
+
+    Merge de historiales local y remoto

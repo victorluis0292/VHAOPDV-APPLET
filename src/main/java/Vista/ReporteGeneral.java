@@ -293,8 +293,10 @@ public class ReporteGeneral extends JFrame {
 }
 
     private double obtenerVentasRango(String inicio, String fin, int idEmpresa) throws SQLException {
-        return consultaSQL("SELECT COALESCE(SUM(total),0) FROM ventas WHERE DATE(fecha) BETWEEN ? AND ? AND id_empresa=?", inicio, fin, idEmpresa);
-    }
+    return consultaSQL("SELECT COALESCE(SUM(total),0) FROM ventas "
+            + "WHERE DATE(fecha) BETWEEN ? AND ? AND id_empresa=? AND cancelada = 0",
+            inicio, fin, idEmpresa);
+}
     private double obtenerIngresosRango(String inicio, String fin, int idEmpresa) throws SQLException {
         return consultaSQL("SELECT COALESCE(SUM(monto),0) FROM movimientos_caja WHERE DATE(fecha) BETWEEN ? AND ? AND tipo='Ingreso' AND id_empresa=?", inicio, fin, idEmpresa);
     }
@@ -302,21 +304,21 @@ public class ReporteGeneral extends JFrame {
         return consultaSQL("SELECT COALESCE(SUM(monto),0) FROM movimientos_caja WHERE DATE(fecha) BETWEEN ? AND ? AND tipo='Egreso' AND id_empresa=?", inicio, fin, idEmpresa);
     }
     private double obtenerGananciaRango(String inicio, String fin, int idEmpresa) throws SQLException {
-        double ganancia = 0;
-        String sql = "SELECT d.cantidad, d.precio, p.preciocompra FROM detalle d " +
-                     "JOIN ventas v ON d.id_venta=v.id " +
-                     "JOIN productos p ON d.id_pro=p.id " +
-                     "WHERE DATE(v.fecha) BETWEEN ? AND ? AND v.id_empresa=?";
-        try (Connection con = Conexion.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, inicio); ps.setString(2, fin); ps.setInt(3, idEmpresa);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    ganancia += (rs.getDouble("precio") - rs.getDouble("preciocompra")) * rs.getInt("cantidad");
-                }
+    double ganancia = 0;
+    String sql = "SELECT d.cantidad, d.precio, p.preciocompra FROM detalle d " +
+                 "JOIN ventas v ON d.id_venta=v.id " +
+                 "JOIN productos p ON d.id_pro=p.id " +
+                 "WHERE DATE(v.fecha) BETWEEN ? AND ? AND v.id_empresa=? AND v.cancelada = 0";
+    try (Connection con = Conexion.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setString(1, inicio); ps.setString(2, fin); ps.setInt(3, idEmpresa);
+        try (ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                ganancia += (rs.getDouble("precio") - rs.getDouble("preciocompra")) * rs.getDouble("cantidad");
             }
         }
-        return ganancia;
     }
+    return ganancia;
+}
 
     private void agregarLinea(JPanel panel, GridBagConstraints gbc, int fila, JLabel etiqueta, JLabel valor, JButton boton) {
         gbc.gridy = fila; gbc.gridx = 0; panel.add(etiqueta, gbc);

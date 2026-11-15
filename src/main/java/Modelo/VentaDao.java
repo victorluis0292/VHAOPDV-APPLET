@@ -226,7 +226,9 @@ ps.setObject(7, fechaHoraLocal);
                     v.setVendedor(rs.getString("vendedor"));
                     v.setTotal(rs.getDouble("total"));
                     v.setFolio(rs.getInt("folio"));
+                    v.setCancelada(rs.getInt("cancelada") == 1);
                     lista.add(v);
+                    
                 }
             }
         } catch (SQLException e) {
@@ -239,12 +241,13 @@ ps.setObject(7, fechaHoraLocal);
     public Venta BuscarVenta(int idVenta) {
         Venta venta = null;
         String sql = "SELECT v.id, v.folio, v.id_empresa, v.cliente, v.vendedor, " +
-                     "v.total, v.subtotal, v.pagacon, v.cambio, v.comision, v.fecha, v.tipopago, v.fecha_hora, v.id_turno, " +
-                     "c.nombre AS nombre_cliente, e.nombre AS nombre_empresa " +
-                     "FROM ventas v " +
-                     "LEFT JOIN clientes c ON v.cliente = c.id " +
-                     "LEFT JOIN empresa e ON v.id_empresa = e.id_empresa " +
-                     "WHERE v.id = ?";
+             "v.total, v.subtotal, v.pagacon, v.cambio, v.comision, v.fecha, v.tipopago, v.fecha_hora, v.id_turno, " +
+             "v.cancelada, " +                                   // NUEVO
+             "c.nombre AS nombre_cliente, e.nombre AS nombre_empresa " +
+             "FROM ventas v " +
+             "LEFT JOIN clientes c ON v.cliente = c.id " +
+             "LEFT JOIN empresa e ON v.id_empresa = e.id_empresa " +
+             "WHERE v.id = ?";
 
         try (Connection con = cn.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
@@ -265,6 +268,7 @@ ps.setObject(7, fechaHoraLocal);
                     venta.setComision(rs.getDouble("comision"));
                     venta.setFecha(rs.getString("fecha"));
                     venta.setTipopago(rs.getString("tipopago"));
+                    venta.setCancelada(rs.getInt("cancelada") == 1);
                     java.time.LocalDateTime fechaHora =
     rs.getObject("fecha_hora", java.time.LocalDateTime.class);
 
@@ -409,12 +413,13 @@ if (fechaHora != null) {
     public Venta BuscarVentaPorFolio(int folio, int idEmpresa) {
         Venta v = null;
         String sql = "SELECT v.id, v.folio, v.id_empresa, v.cliente, v.vendedor, " +
-                     "v.total, v.subtotal, v.pagacon, v.cambio, v.comision, v.fecha, v.tipopago, v.fecha_hora, v.id_turno, " +
-                     "c.nombre AS nombre_cliente, e.nombre AS nombre_empresa " +
-                     "FROM ventas v " +
-                     "LEFT JOIN clientes c ON v.cliente = c.id " +
-                     "LEFT JOIN empresa e ON v.id_empresa = e.id_empresa " +
-                     "WHERE v.folio = ? AND v.id_empresa = ?";
+             "v.total, v.subtotal, v.pagacon, v.cambio, v.comision, v.fecha, v.tipopago, v.fecha_hora, v.id_turno, " +
+             "v.cancelada, " +                                   // NUEVO
+             "c.nombre AS nombre_cliente, e.nombre AS nombre_empresa " +
+             "FROM ventas v " +
+             "LEFT JOIN clientes c ON v.cliente = c.id " +
+             "LEFT JOIN empresa e ON v.id_empresa = e.id_empresa " +
+             "WHERE v.folio = ? AND v.id_empresa = ?";
 
         try (Connection con = cn.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
@@ -669,4 +674,65 @@ public List<Object[]> listarPromocionesPorVenta(int idVenta) {
     }
     return lista;
 }
-}
+
+// Metodo de cancelacion venta
+public void cancelarVenta(int idVenta, int idEmpresa, String usuario, String motivo) throws Exception {
+    try (Connection con = cn.getConnection()) {
+        con.setAutoCommit(false);
+        try {
+            // 1. Bloquear la venta y validar que se pueda cancelar
+            String tipoPago;
+            int idTurnoVenta;
+            try (PreparedStatement ps = con.prepareStatement(
+                    "SELECT cancelada, tipopago, id_turno FROM ventas WHERE id = ? AND id_empresa = ? FOR UPDATE")) {
+                ps.setInt(1, idVenta);
+                ps.setInt(2, idEmpresa);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) throw new Exception("La venta no existe.");
+                    if (rs.getInt("cancelada") == 1) throw new Exception("La venta ya está cancelada.");
+                    tipoPago = rs.getString("tipopago");
+                    idTurnoVenta = rs.getInt("id_turno");
+                }
+            }
+
+            // Solo se cancelan ventas del turno abierto (el corte de turnos cerrados ya está guardado)
+            TurnoModel turnoActual = TurnoController.getTurnoGlobal();
+            if (turnoActual == null || turnoActual.getId() != idTurnoVenta)
+                throw new Exception("Solo se pueden cancelar ventas del turno actual.\n"
+                        + "Esta venta pertenece a un turno ya cerrado.");
+
+            // Ventas a crédito: no se cancelan desde aquí
+            if (tipoPago != null && tipoPago.toLowerCase().contains("cred"))
+                throw new Exception("Las ventas a crédito se cancelan desde el módulo de Crédito Cliente.");
+
+            // 2. Regresar stock (SUM + GROUP BY por si un producto aparece en varias líneas)
+            try (PreparedStatement ps = con.prepareStatement(
+                    "UPDATE productos p " +
+                    "JOIN (SELECT id_pro, SUM(cantidad) AS cant FROM detalle WHERE id_venta = ? GROUP BY id_pro) d " +
+                    "  ON d.id_pro = p.id " +
+                    "SET p.stock = p.stock + d.cant " +
+                    "WHERE p.id_empresa = ?")) {
+                ps.setInt(1, idVenta);
+                ps.setInt(2, idEmpresa);
+                ps.executeUpdate();
+            }
+
+            // 3. Marcar la venta como cancelada (hora Java-side, por el tema UTC de Hostinger)
+            try (PreparedStatement ps = con.prepareStatement(
+                    "UPDATE ventas SET cancelada = 1, fecha_cancelacion = ?, cancelada_por = ?, motivo_cancelacion = ? " +
+                    "WHERE id = ? AND id_empresa = ?")) {
+                ps.setObject(1, LocalDateTime.now(ZoneId.of("America/Monterrey")));
+                ps.setString(2, usuario);
+                ps.setString(3, motivo);
+                ps.setInt(4, idVenta);
+                ps.setInt(5, idEmpresa);
+                ps.executeUpdate();
+            }
+
+            con.commit();
+        } catch (Exception e) {
+            con.rollback();
+            throw e;
+        }
+    }
+}}

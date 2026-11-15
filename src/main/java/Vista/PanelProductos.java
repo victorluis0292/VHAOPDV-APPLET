@@ -67,6 +67,7 @@ public class PanelProductos extends JPanel {
     private boolean ignorarEventoProveedor = false;
     private TableRowSorter<DefaultTableModel> sorterProductos;
     private final Runnable onProductosActualizados;
+    private boolean validandoCodigo = false;
 
     // ============================================================
     // CONSTRUCTOR
@@ -306,7 +307,8 @@ public class PanelProductos extends JPanel {
         Estilos.estiloBotonAzul(btnEditarpro);
         Estilos.estiloBotonAzul(btnEliminarPro);
         Estilos.estiloBotonAzul(btnNuevoPro);
-
+        
+        btnNuevoPro.setFocusable(false);   // <-- aquí
         btnGuardarpro.setToolTipText("Guardar producto");
         btnEditarpro.setToolTipText("Editar producto seleccionado");
         btnEliminarPro.setToolTipText("Eliminar producto seleccionado");
@@ -504,63 +506,65 @@ public class PanelProductos extends JPanel {
     // CLICK TABLA
     // ============================================================
 
-    private void TableProductoMouseClicked(MouseEvent evt) {
+   private void TableProductoMouseClicked(MouseEvent evt) {
+    int filaSeleccionada = TableProducto.getSelectedRow();
+    if (filaSeleccionada == -1) return;
 
-        int filaSeleccionada = TableProducto.getSelectedRow();
-        if (filaSeleccionada == -1) return;
+    int filaReal = TableProducto.convertRowIndexToModel(filaSeleccionada);
+    cargarProductoEnFormulario(filaReal);
+}
 
-        int filaReal = TableProducto.convertRowIndexToModel(filaSeleccionada);
+private void cargarProductoEnFormulario(int filaReal) {
 
-        txtIdproducto.setText(valorTabla(filaReal, 0));
-        txtCodigoPro.setText(valorTabla(filaReal, 1));
-        txtDesPro.setText(valorTabla(filaReal, 2));
+    txtIdproducto.setText(valorTabla(filaReal, 0));
+    txtCodigoPro.setText(valorTabla(filaReal, 1));
+    txtDesPro.setText(valorTabla(filaReal, 2));
 
-        String categoriaNombre = valorTabla(filaReal, 3);
-        for (int i = 0; i < cbxCategoria.getItemCount(); i++) {
-            Categoria item = cbxCategoria.getItemAt(i);
-            if (item != null && item.getNombre() != null && item.getNombre().equalsIgnoreCase(categoriaNombre)) {
-                cbxCategoria.setSelectedIndex(i);
-                idCategoriaActual = item.getIdCategoria();
-                break;
-            }
+    String categoriaNombre = valorTabla(filaReal, 3);
+    for (int i = 0; i < cbxCategoria.getItemCount(); i++) {
+        Categoria item = cbxCategoria.getItemAt(i);
+        if (item != null && item.getNombre() != null && item.getNombre().equalsIgnoreCase(categoriaNombre)) {
+            cbxCategoria.setSelectedIndex(i);
+            idCategoriaActual = item.getIdCategoria();
+            break;
         }
-
-        txtCantPro.setText(valorTabla(filaReal, 5));
-        txtPrecioPro.setText(valorTabla(filaReal, 6));
-        txtPreciocompraPro.setText(valorTabla(filaReal, 7));
-
-        Object idProvObj = modelo.getValueAt(filaReal, 8);
-        if (idProvObj != null) {
-            try {
-                int idProv = Integer.parseInt(idProvObj.toString());
-                ignorarEventoProveedor = true;
-
-                for (int i = 0; i < cbxProveedorPro.getItemCount(); i++) {
-                    Combo item = cbxProveedorPro.getItemAt(i);
-                    if (item != null && item.getId() == idProv) {
-                        cbxProveedorPro.setSelectedIndex(i);
-                        break;
-                    }
-                }
-
-                ignorarEventoProveedor = false;
-            } catch (Exception ex) {
-                ignorarEventoProveedor = false;
-            }
-        }
-
-        Object imagenUrlObj = modelo.getValueAt(filaReal, 9);
-        if (imagenUrlObj != null && !imagenUrlObj.toString().trim().isEmpty()) {
-            txtImagenPro.setText(imagenUrlObj.toString().trim());
-        } else {
-            txtImagenPro.setText("");
-        }
-
-        btnEditarpro.setEnabled(true);
-        btnGuardarpro.setEnabled(false);
-        btnGenerarCodigoBarras.setEnabled(true);
     }
 
+    txtCantPro.setText(valorTabla(filaReal, 5));
+    txtPrecioPro.setText(valorTabla(filaReal, 6));
+    txtPreciocompraPro.setText(valorTabla(filaReal, 7));
+
+    Object idProvObj = modelo.getValueAt(filaReal, 8);
+    if (idProvObj != null) {
+        try {
+            int idProv = Integer.parseInt(idProvObj.toString());
+            ignorarEventoProveedor = true;
+
+            for (int i = 0; i < cbxProveedorPro.getItemCount(); i++) {
+                Combo item = cbxProveedorPro.getItemAt(i);
+                if (item != null && item.getId() == idProv) {
+                    cbxProveedorPro.setSelectedIndex(i);
+                    break;
+                }
+            }
+
+            ignorarEventoProveedor = false;
+        } catch (Exception ex) {
+            ignorarEventoProveedor = false;
+        }
+    }
+
+    Object imagenUrlObj = modelo.getValueAt(filaReal, 9);
+    if (imagenUrlObj != null && !imagenUrlObj.toString().trim().isEmpty()) {
+        txtImagenPro.setText(imagenUrlObj.toString().trim());
+    } else {
+        txtImagenPro.setText("");
+    }
+
+    btnEditarpro.setEnabled(true);
+    btnGuardarpro.setEnabled(false);
+    btnGenerarCodigoBarras.setEnabled(true);
+}
     private String valorTabla(int fila, int columna) {
         Object valor = modelo.getValueAt(fila, columna);
         return valor == null ? "" : valor.toString();
@@ -938,39 +942,64 @@ public class PanelProductos extends JPanel {
         });
 
         // --- Validar código duplicado ---
-        Runnable validarCodigoExistente = () -> {
+  // --- Validar código duplicado ---
+Runnable validarCodigoExistente = () -> {
 
-            String codigoIngresado = txtCodigoPro.getText().trim();
-            String idActual = txtIdproducto.getText().trim();
+    if (validandoCodigo) return;
 
-            if (codigoIngresado.isEmpty()) return;
+    String codigoIngresado = txtCodigoPro.getText().trim();
+    String idActual = txtIdproducto.getText().trim();
 
-            for (int i = 0; i < modelo.getRowCount(); i++) {
-                String idFila = modelo.getValueAt(i, 0).toString();
-                String codigoEnTabla = modelo.getValueAt(i, 1).toString();
+    if (codigoIngresado.isEmpty()) return;
 
-                if (codigoEnTabla.equalsIgnoreCase(codigoIngresado) && (idActual.isEmpty() || !idFila.equals(idActual))) {
-                    JOptionPane.showMessageDialog(this,
-                            "¡Este producto ya fue registrado!\nEl código '" + codigoIngresado + "' ya existe en el sistema.",
-                            "Código Duplicado", JOptionPane.WARNING_MESSAGE);
+    for (int i = 0; i < modelo.getRowCount(); i++) {
+        String idFila = modelo.getValueAt(i, 0).toString();
+        String codigoEnTabla = modelo.getValueAt(i, 1).toString();
+
+        if (codigoEnTabla.equalsIgnoreCase(codigoIngresado) && (idActual.isEmpty() || !idFila.equals(idActual))) {
+
+            validandoCodigo = true;
+            try {
+                int opcion = JOptionPane.showConfirmDialog(this,
+                        "¡Este producto ya fue registrado!\n"
+                        + "El código '" + codigoIngresado + "' ya existe en el sistema.\n\n"
+                        + "¿Deseas hacer alguna modificación?",
+                        "Código Duplicado",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE);
+
+                if (opcion == JOptionPane.YES_OPTION) {
+                    // Equivale a seleccionar el producto en la tabla
+                    cargarProductoEnFormulario(i);
+
+                    int filaVista = TableProducto.convertRowIndexToView(i);
+                    if (filaVista >= 0) {
+                        TableProducto.setRowSelectionInterval(filaVista, filaVista);
+                        TableProducto.scrollRectToVisible(TableProducto.getCellRect(filaVista, 0, true));
+                    }
+                } else {
+                    // "No" o cerrar la ventana: solo limpiar
+                    limpiarFormulario();
                     txtCodigoPro.requestFocus();
-                    txtCodigoPro.selectAll();
-                    break;
                 }
+            } finally {
+                validandoCodigo = false;
             }
-        };
-
+            break;
+        }
+    }
+};
         txtCodigoPro.addActionListener(e -> validarCodigoExistente.run());
 
         txtCodigoPro.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent evt) {
-                if (!txtCodigoPro.getText().trim().isEmpty()) {
-                    validarCodigoExistente.run();
-                }
-            }
-        });
-
+    @Override
+    public void focusLost(FocusEvent evt) {
+        if (evt.isTemporary()) return;
+        if (!txtCodigoPro.getText().trim().isEmpty()) {
+            validarCodigoExistente.run();
+        }
+    }
+});
         // --- Catálogo global ---
         btnBuscarImagen.addActionListener(e -> {
             String sugerido = txtDesPro.getText() == null ? "" : txtDesPro.getText().trim();
@@ -1051,13 +1080,13 @@ public class PanelProductos extends JPanel {
             }
         });
 
-        // --- Nuevo ---
-        btnNuevoPro.addActionListener(e -> {
-            limpiarFormulario();
-            btnGuardarpro.setEnabled(true);
-            btnEditarpro.setEnabled(false);
-        });
-
+       // --- Nuevo ---
+btnNuevoPro.addActionListener(e -> {
+    limpiarFormulario();
+    btnGuardarpro.setEnabled(true);
+    btnEditarpro.setEnabled(false);
+    txtCodigoPro.requestFocusInWindow();
+});
         // --- Eliminar ---
         btnEliminarPro.addActionListener(e -> {
 

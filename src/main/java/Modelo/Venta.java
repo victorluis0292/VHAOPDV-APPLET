@@ -84,6 +84,11 @@ public String getNombreEmpresa() {
 public void setNombreEmpresa(String nombreEmpresa) {
     this.nombreEmpresa = nombreEmpresa;
 }
+
+private boolean cancelada;
+
+public boolean isCancelada() { return cancelada; }
+public void setCancelada(boolean cancelada) { this.cancelada = cancelada; }
 }
 
 

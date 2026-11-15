@@ -57,7 +57,7 @@ private void cargarDatos() {
         "  INNER JOIN ventas v ON d.id_venta = v.id " +
         "  INNER JOIN productos pr ON d.id_pro = pr.id " +
         "  INNER JOIN proveedor p ON pr.proveedor = p.id " +
-        "  WHERE v.fecha = ? AND v.id_empresa = ? " +
+        "  WHERE v.fecha = ? AND v.id_empresa = ? AND v.cancelada = 0 " +
 
         "  UNION ALL " +
 
@@ -77,7 +77,7 @@ private void cargarDatos() {
         "  ) base ON base.id_vp = vp.id " +
         "  INNER JOIN productos pr ON d.id_pro = pr.id " +
         "  INNER JOIN proveedor p ON pr.proveedor = p.id " +
-        "  WHERE v.fecha = ? AND v.id_empresa = ? " +
+        "  WHERE v.fecha = ? AND v.id_empresa = ? AND v.cancelada = 0 " +
         ") t GROUP BY t.Proveedor";
 
     try (Connection con = Conexion.getConnection();

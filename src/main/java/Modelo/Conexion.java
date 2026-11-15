@@ -51,7 +51,7 @@ public class Conexion {
             try {
 
                 // 🔹 Seleccionar archivo según el entorno
-              String file = environment.equalsIgnoreCase("prod")
+              String file = environment.equalsIgnoreCase("local")
         ? "config/config.prod.properties"   // si es prod → archivo de prod
         : "config/config.local.properties"; // si no → archivo local
 

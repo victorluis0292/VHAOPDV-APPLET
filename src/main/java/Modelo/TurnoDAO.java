@@ -114,8 +114,9 @@ public TurnoModel obtenerTurnoAbierto(String usuario, int idEmpresa) {
 
     // Métodos para obtener ventas, ingresos, egresos, ganancia...
     public BigDecimal obtenerVentas(int turnoId) {
-        BigDecimal total = BigDecimal.ZERO;
-        String sql = "SELECT SUM(total) AS total_ventas FROM ventas WHERE id_turno = ?";
+    BigDecimal total = BigDecimal.ZERO;
+    String sql = "SELECT SUM(total) AS total_ventas FROM ventas WHERE id_turno = ? AND cancelada = 0";
+   
 
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
