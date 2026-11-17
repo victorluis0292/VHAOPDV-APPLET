@@ -4,6 +4,8 @@ import Modelo.ImprimirTicket;
 import Modelo.Venta;
 import Modelo.VentaDao;
 import Modelo.AbonoProductoDao;
+import Modelo.TurnoHistorialDao;
+import Modelo.TurnoModel;
 import Vista.HistorialVentasPanel;
 import Vista.DetalleVentaDialog;
 
@@ -15,23 +17,29 @@ import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
+import java.util.Map;
 import java.util.Date;
 import java.text.SimpleDateFormat;
 import java.awt.event.KeyEvent;
 
 /**
- * Controlador de Historial de Ventas.
+ * Controlador de Historial de Ventas (filtrado por TURNO).
  */
 public class HistorialVentasController {
 
+    private static final int SIN_TURNO = 0;      // idTurno 0 = ventas con id_turno NULL
+    private static final int MAX_TURNOS = 30;    // cuántos turnos recientes lista el combo
+
     private final HistorialVentasPanel panel;
     private final VentaDao ventaDao = new VentaDao();
+    private final TurnoHistorialDao turnoDao = new TurnoHistorialDao();
     private final int idEmpresa;
-    private LocalDate diaActual = LocalDate.now();
-    private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    private final Map<Integer, TurnoHistorialDao.TurnoInfo> turnosCache = new HashMap<>();
+    private final SimpleDateFormat fmtInicio = new SimpleDateFormat("dd/MM HH:mm");
+    private final SimpleDateFormat fmtHora = new SimpleDateFormat("HH:mm");
 
     public HistorialVentasController(HistorialVentasPanel panel, int idEmpresa) {
         this.panel = panel;
@@ -42,73 +50,159 @@ public class HistorialVentasController {
         instalarDobleClicDetalle();
         instalarEnterDetalle();
 
-        this.panel.getBtnDiaAnterior().addActionListener(e -> {
-            diaActual = diaActual.minusDays(1);
-            cargarVentas();
+        // Cambiar de turno en el combo (el flag evita disparar esto al llenar el combo por código)
+        this.panel.getCmbTurnos().addActionListener(e -> {
+            if (panel.isCargandoTurnos()) return;
+            panel.getTxtBuscarFolio().setText("");
+            cargarVentasDelTurno();
         });
 
-        this.panel.getBtnDiaSiguiente().addActionListener(e -> {
-            if (diaActual.isBefore(LocalDate.now())) {
-                diaActual = diaActual.plusDays(1);
-                cargarVentas();
+        // Buscar folio en todos los turnos: botón o Enter en el campo
+        this.panel.getBtnBuscarFolio().addActionListener(e -> buscarFolioGlobal());
+        this.panel.getTxtBuscarFolio().addActionListener(e -> buscarFolioGlobal());
+    }
+
+    // =====================================================================
+    //  TURNOS Y VENTAS
+    // =====================================================================
+
+    /**
+     * Carga (o recarga) el historial. Refresca la lista de turnos (por si se abrió uno nuevo)
+     * y conserva el turno que estaba seleccionado; la primera vez selecciona el más reciente.
+     */
+    public void cargarVentas() {
+        HistorialVentasPanel.TurnoItem sel = panel.getTurnoSeleccionado();
+        cargarTurnos(sel == null ? -1 : sel.idTurno);
+        cargarVentasDelTurno();
+    }
+
+    /**
+     * Llamar al entrar a la pestaña Historial: siempre arranca en el turno actual
+     * (si no hay turno abierto, en el más reciente).
+     */
+    public void abrir() {
+        TurnoModel actual = TurnoController.getTurnoGlobal();
+        cargarTurnos(actual == null ? -1 : actual.getId());
+        panel.getTxtBuscarFolio().setText("");
+        cargarVentasDelTurno();
+    }
+
+    private void cargarTurnos(int idTurnoASeleccionar) {
+        turnosCache.clear();
+        List<HistorialVentasPanel.TurnoItem> items = new ArrayList<>();
+
+        for (TurnoHistorialDao.TurnoInfo t : turnoDao.ultimosTurnos(idEmpresa, MAX_TURNOS)) {
+            turnosCache.put(t.id, t);
+            String cierre = t.fechaCierre == null ? "ABIERTO" : fmtHora.format(t.fechaCierre);
+            items.add(new HistorialVentasPanel.TurnoItem(t.id,
+                    "#" + t.id + " · " + t.usuario + " · "
+                    + fmtInicio.format(t.fechaInicio) + " – " + cierre));
+        }
+        items.add(new HistorialVentasPanel.TurnoItem(SIN_TURNO, "Sin turno (ventas anteriores)"));
+
+        panel.setTurnos(items, idTurnoASeleccionar);
+    }
+
+    private void cargarVentasDelTurno() {
+        panel.limpiar();
+
+        HistorialVentasPanel.TurnoItem turno = panel.getTurnoSeleccionado();
+        if (turno == null) {
+            panel.setTotalVendido(0);
+            panel.setResumenTurno("");
+            return;
+        }
+
+        List<Venta> lista = ventaDao.ListarVentasPorTurno(idEmpresa, turno.idTurno);
+
+        double totalVendido = 0;
+        for (Venta v : lista) {
+            String estatus = v.isCancelada() ? "Cancelada" : "Exitosa";
+            panel.agregarFila(v.getFolio(), v.getNombre_cli(), v.getVendedor(),
+                              v.getTotal(), estatus, v.getId());
+            if (!v.isCancelada()) {
+                totalVendido += v.getTotal();
+            }
+        }
+        panel.setTotalVendido(totalVendido);
+        panel.setResumenTurno(armarResumen(turno.idTurno, lista.size()));
+    }
+
+    private String armarResumen(int idTurno, int numVentas) {
+        if (idTurno == SIN_TURNO) {
+            return "Ventas registradas antes de usar turnos · " + numVentas + " ventas";
+        }
+        TurnoHistorialDao.TurnoInfo t = turnosCache.get(idTurno);
+        if (t == null) {
+            return numVentas + " ventas";
+        }
+        return String.format("Cajero: %s · Fondo inicial: $%,.2f · %s · %d ventas",
+                t.usuario, t.saldoInicial, t.estado, numVentas);
+    }
+
+    /** Busca el folio en TODOS los turnos y, si existe, cambia al turno donde está. */
+    private void buscarFolioGlobal() {
+        String txt = panel.getTxtBuscarFolio().getText().trim();
+        if (txt.isEmpty()) return;
+
+        int folio;
+        try {
+            folio = Integer.parseInt(txt);
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(panel, "El folio debe ser un número.");
+            return;
+        }
+
+        // Si ya está en el turno que se ve, solo lo selecciona
+        if (panel.seleccionarFolio(txt)) return;
+
+        int idTurno = turnoDao.turnoDeFolio(idEmpresa, folio); // -1 = no existe, 0 = sin turno
+        if (idTurno < 0) {
+            JOptionPane.showMessageDialog(panel, "No se encontró el folio " + folio + ".");
+            return;
+        }
+
+        cargarTurnos(idTurno);       // si el turno es más viejo que los últimos 30, el combo
+                                     // selecciona el primero; se avisa abajo
+        HistorialVentasPanel.TurnoItem sel = panel.getTurnoSeleccionado();
+        if (sel == null || sel.idTurno != idTurno) {
+            JOptionPane.showMessageDialog(panel,
+                    "El folio " + folio + " pertenece a un turno anterior a los últimos "
+                    + MAX_TURNOS + " turnos.");
+        }
+        cargarVentasDelTurno();
+        panel.seleccionarFolio(txt);
+    }
+
+    /** Enter sobre la fila seleccionada abre el detalle (en vez de bajar a la siguiente fila). */
+    private void instalarEnterDetalle() {
+        JTable tabla = panel.getTableVentas();
+        tabla.getInputMap(JComponent.WHEN_FOCUSED)
+             .put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "abrirDetalle");
+        tabla.getActionMap().put("abrirDetalle", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                abrirDetalleSeleccionado();
             }
         });
     }
 
-    /** Carga (o recarga) la tabla con las ventas de la empresa activa. */
-    public void cargarVentas() {
-        panel.limpiar();
-
-        java.sql.Date fechaSql = java.sql.Date.valueOf(diaActual);
-        List<Venta> lista = ventaDao.ListarVentasPorFecha(idEmpresa, fechaSql);
-
-        for (Venta v : lista) {
-    String estatus = v.isCancelada() ? "Cancelada" : "Exitosa";
-    panel.agregarFila(v.getFolio(), v.getNombre_cli(), v.getVendedor(),
-                      v.getTotal(), estatus, v.getId());
-}
-
-        actualizarEtiquetaFecha();
-    }
-
-    private void actualizarEtiquetaFecha() {
-        String texto;
-        if (diaActual.equals(LocalDate.now())) {
-            texto = "Hoy (" + diaActual.format(FORMATO_FECHA) + ")";
-        } else {
-            texto = diaActual.format(FORMATO_FECHA);
+    private void abrirDetalleSeleccionado() {
+        int filaVista = panel.getTableVentas().getSelectedRow();
+        if (filaVista < 0) {
+            JOptionPane.showMessageDialog(panel, "Selecciona una venta primero.");
+            return;
         }
-        panel.getLblFechaActual().setText(texto);
-        panel.getBtnDiaSiguiente().setEnabled(diaActual.isBefore(LocalDate.now()));
-    }
-    
-    /** Enter sobre la fila seleccionada abre el detalle (en vez de bajar a la siguiente fila). */
-private void instalarEnterDetalle() {
-    JTable tabla = panel.getTableVentas();
-    tabla.getInputMap(JComponent.WHEN_FOCUSED)
-         .put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "abrirDetalle");
-    tabla.getActionMap().put("abrirDetalle", new AbstractAction() {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            abrirDetalleSeleccionado();
+        int filaModelo = panel.getTableVentas().convertRowIndexToModel(filaVista);
+        try {
+            int idVenta = Integer.parseInt(
+                    String.valueOf(panel.getModelo().getValueAt(filaModelo, HistorialVentasPanel.COL_ID_VENTA)));
+            abrirDetalle(idVenta);
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(panel, "No se pudo identificar la venta.");
         }
-    });
-}
-  private void abrirDetalleSeleccionado() {
-    int filaVista = panel.getTableVentas().getSelectedRow();
-    if (filaVista < 0) {
-        JOptionPane.showMessageDialog(panel, "Selecciona una venta primero.");
-        return;
     }
-    int filaModelo = panel.getTableVentas().convertRowIndexToModel(filaVista);
-    try {
-        int idVenta = Integer.parseInt(
-                String.valueOf(panel.getModelo().getValueAt(filaModelo, HistorialVentasPanel.COL_ID_VENTA)));
-        abrirDetalle(idVenta);
-    } catch (NumberFormatException ex) {
-        JOptionPane.showMessageDialog(panel, "No se pudo identificar la venta.");
-    }
-}
+
     private void onGenerarPdf(ActionEvent e) {
         String folioTxt = panel.getTxtFolioSeleccionado().getText().trim();
         if (folioTxt.isEmpty()) {
@@ -137,27 +231,28 @@ private void instalarEnterDetalle() {
 
     /** Doble clic en una fila (excepto la columna del botón Reimprimir) abre el detalle. */
     private void instalarDobleClicDetalle() {
-    JTable tabla = panel.getTableVentas();
-    tabla.addMouseListener(new MouseAdapter() {
-        @Override
-        public void mouseClicked(MouseEvent e) {
-            if (e.getClickCount() != 2) return;
+        JTable tabla = panel.getTableVentas();
+        tabla.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() != 2) return;
 
-            int filaVista = tabla.rowAtPoint(e.getPoint());
-            int colVista = tabla.columnAtPoint(e.getPoint());
-            if (filaVista < 0 || colVista == HistorialVentasPanel.COL_TICKET) return;
+                int filaVista = tabla.rowAtPoint(e.getPoint());
+                int colVista = tabla.columnAtPoint(e.getPoint());
+                if (filaVista < 0 || colVista == HistorialVentasPanel.COL_TICKET) return;
 
-            int filaModelo = tabla.convertRowIndexToModel(filaVista);
-            try {
-                int idVenta = Integer.parseInt(
-                        String.valueOf(panel.getModelo().getValueAt(filaModelo, HistorialVentasPanel.COL_ID_VENTA)));
-                abrirDetalle(idVenta);
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(panel, "No se pudo identificar la venta.");
+                int filaModelo = tabla.convertRowIndexToModel(filaVista);
+                try {
+                    int idVenta = Integer.parseInt(
+                            String.valueOf(panel.getModelo().getValueAt(filaModelo, HistorialVentasPanel.COL_ID_VENTA)));
+                    abrirDetalle(idVenta);
+                } catch (NumberFormatException ex) {
+                    JOptionPane.showMessageDialog(panel, "No se pudo identificar la venta.");
+                }
             }
-        }
-    });
-}
+        });
+    }
+
     private void abrirDetalle(int idVenta) {
         Venta v = ventaDao.BuscarVenta(idVenta);
         if (v == null) {
@@ -177,6 +272,13 @@ private void instalarEnterDetalle() {
         if (v.isCancelada()) {
             dlg.getBtnCancelar().setEnabled(false);
             dlg.getBtnCancelar().setText("Ya cancelada");
+        }
+
+        // Solo se cancelan ventas del turno actual (misma regla que VentaDao.cancelarVenta)
+        TurnoModel turnoActual = TurnoController.getTurnoGlobal();
+        if (!v.isCancelada() && (turnoActual == null || turnoActual.getId() != v.getIdTurno())) {
+            dlg.getBtnCancelar().setEnabled(false);
+            dlg.getBtnCancelar().setText("Turno cerrado");
         }
 
         dlg.getBtnCancelar().addActionListener(ev -> cancelarVenta(dlg, v));
@@ -204,7 +306,8 @@ private void instalarEnterDetalle() {
             ventaDao.cancelarVenta(v.getId(), idEmpresa, obtenerUsuarioActual(), motivo.trim());
             JOptionPane.showMessageDialog(dlg, "Venta cancelada y stock restaurado.");
             dlg.dispose();
-            cargarVentas();
+            cargarVentas(); // conserva el turno seleccionado
+            Vista.Sistema.getInstancia().actualizarVentasHoy(); // card "Tus ventas"
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(dlg, ex.getMessage());
         }
@@ -220,23 +323,23 @@ private void instalarEnterDetalle() {
     // =====================================================================
 
     /**
-     * Botón "Reimprimir" embebido en la columna 4 de la tabla.
+     * Botón "Reimprimir" embebido en la columna Ticket de la tabla.
      */
- private void instalarBotonReimprimir() {
-    JTable tabla = panel.getTableVentas();
+    private void instalarBotonReimprimir() {
+        JTable tabla = panel.getTableVentas();
 
-    // Renderer para mostrar el botón (columna Ticket)
-    tabla.getColumnModel().getColumn(HistorialVentasPanel.COL_TICKET).setCellRenderer(new DefaultTableCellRenderer() {
-        private final JButton btn = new JButton("Reimprimir");
+        // Renderer para mostrar el botón (columna Ticket)
+        tabla.getColumnModel().getColumn(HistorialVentasPanel.COL_TICKET).setCellRenderer(new DefaultTableCellRenderer() {
+            private final JButton btn = new JButton("Reimprimir");
 
-        @Override
-        public Component getTableCellRendererComponent(JTable t, Object val, boolean isSel, boolean hasFocus, int r, int c) {
-            return btn;
-        }
-    });
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object val, boolean isSel, boolean hasFocus, int r, int c) {
+                return btn;
+            }
+        });
 
-    tabla.getColumnModel().getColumn(HistorialVentasPanel.COL_TICKET).setCellEditor(new ReimprimirButtonEditor());
-}
+        tabla.getColumnModel().getColumn(HistorialVentasPanel.COL_TICKET).setCellEditor(new ReimprimirButtonEditor());
+    }
 
     private class ReimprimirButtonEditor extends javax.swing.AbstractCellEditor
             implements javax.swing.table.TableCellEditor {
@@ -254,14 +357,14 @@ private void instalarEnterDetalle() {
 
         @Override
         public Object getCellEditorValue() {
-            return valorCelda; // Devuelve el ID original para no sobrescribir el modelo
+            return valorCelda; // Devuelve el valor original para no sobrescribir el modelo
         }
 
         @Override
         public Component getTableCellEditorComponent(JTable table, Object value,
                                                      boolean isSelected, int row, int column) {
             this.filaActual = row;
-            this.valorCelda = value; // Guarda el valor entero almacenado en la celda (id_venta)
+            this.valorCelda = value;
             return boton;
         }
     }
@@ -277,7 +380,7 @@ private void instalarEnterDetalle() {
                 idVenta = Integer.parseInt(valorIdCelda.toString().trim());
             }
 
-            // 2. Leemos la fila del modelo
+            // 2. Leemos la fila del modelo (convertRowIndexToModel: ya soporta el filtro por folio)
             int filaModelo = panel.getTableVentas().convertRowIndexToModel(filaVista);
             DefaultTableModel modelo = panel.getModelo();
 
@@ -401,18 +504,7 @@ private void instalarEnterDetalle() {
         try {
             SimpleDateFormat local = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             local.setTimeZone(java.util.TimeZone.getDefault());
-
-            Date fechaLocal = local.parse(fechaHoraStr);
-
-            SimpleDateFormat utc = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            utc.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
-
-            System.out.println("Fecha recibida de BD: " + fechaHoraStr);
-            System.out.println("Interpretada como hora local: " + local.format(fechaLocal));
-            System.out.println("El mismo instante en UTC: " + utc.format(fechaLocal));
-
-            return fechaLocal;
-
+            return local.parse(fechaHoraStr);
         } catch (Exception e) {
             throw new IllegalArgumentException("Error al interpretar fecha: " + fechaHoraStr, e);
         }

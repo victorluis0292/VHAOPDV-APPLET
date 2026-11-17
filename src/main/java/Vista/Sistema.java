@@ -105,6 +105,7 @@ import Controlador.HistorialVentasController;
 //promociones
 import Modelo.Promocion;
 import Modelo.PromocionDao;
+import Modelo.TurnoModel;
 import Servicios.CalculadoraPromociones;
 import javax.swing.table.TableCellRenderer;
 
@@ -142,9 +143,12 @@ private boolean ajusteActivado = false;
 //
 private JLabel lblVersion;
 
+private JLabel lblVentasHoyMonto;
+
 //
 private FrmBusqueda2 ventanaBusqueda;
 
+private boolean ajusteVentaActivado = false;
 
 public static void setUsuarioActivo(String usuario) {
     usuarioActivo = usuario;
@@ -324,8 +328,9 @@ jPanel17.repaint();
     // -------------------------
     bannersFiados = new BannersCreditoCliente(this::abrirHistorialFiado);
 jPanel2.add(bannersFiados, new org.netbeans.lib.awtextra.AbsoluteConstraints(520, 4, 590, 92));
-    
-    
+ 
+jPanel2.add(crearTarjetaVentasHoy(),
+        new org.netbeans.lib.awtextra.AbsoluteConstraints(525, 102, 230, 56));
     
     TableVenta.getModel().addTableModelListener(evt -> TotalPagarX());
 
@@ -664,7 +669,10 @@ for (int i = 0; i < jPanelMenuCorte.getComponentCount(); i++) {
 // 🔹 CARGAR DATOS EN EL PANEL DE VERDULERÍA YA EXISTENTE (`panelVerduleria`)
 refrescarPanelVerduleria();
 cargarPromosVigentes();
+actualizarVentasHoy();
 activarAjusteAutomatico(); 
+activarAjusteAutomatico();
+activarAjusteVenta();
     instalarLogFoco();
 } 
 private String nombreComp(Object o) {
@@ -716,6 +724,39 @@ private void refrescarPanelVerduleria() {
         e.printStackTrace();
     }
 }   
+
+private JPanel crearTarjetaVentasHoy() {
+    Color acento = new Color(0, 150, 136);
+
+    JPanel card = new JPanel();
+    card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+    card.setBackground(Color.WHITE);
+    card.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+            javax.swing.BorderFactory.createLineBorder(new Color(225, 225, 225)),
+            javax.swing.BorderFactory.createCompoundBorder(
+                    javax.swing.BorderFactory.createMatteBorder(0, 4, 0, 0, acento),
+                    javax.swing.BorderFactory.createEmptyBorder(6, 12, 6, 12))));
+
+    JLabel titulo = new JLabel("Tus ventas");
+    titulo.setFont(titulo.getFont().deriveFont(Font.PLAIN, 11f));
+    titulo.setForeground(acento);
+
+    lblVentasHoyMonto = new JLabel("$ 0.00");
+    lblVentasHoyMonto.setFont(lblVentasHoyMonto.getFont().deriveFont(Font.BOLD, 22f));
+    lblVentasHoyMonto.setForeground(acento);
+
+    card.add(titulo);
+    card.add(lblVentasHoyMonto);
+    return card;
+}
+
+public void actualizarVentasHoy() {
+    if (lblVentasHoyMonto == null || !sistemaYaIniciado) return;
+    TurnoModel turno = Controlador.TurnoController.getTurnoGlobal();
+    double total = (turno == null) ? 0
+            : Vdao.totalVendidoDelTurno(idEmpresaActiva, turno.getId());
+    lblVentasHoyMonto.setText(String.format("$ %,.2f", total));
+}
 private BannersCreditoCliente bannersFiados;
 private Productos buscarProductoVerduleria(String texto) {
     if (cacheProductosEmpresa == null || texto == null || texto.trim().isEmpty()) return null;
@@ -752,22 +793,30 @@ public Controlador.CreditoClienteController getCreditoClienteController() {
     TableVenta.setModel(modelo3);
     }
     
- private void activarAjusteAutomatico() {
-    if (ajusteActivado) return;          // evita duplicar listeners si se llama otra vez
+ private void poner(java.awt.Container cont, java.awt.Component c, int x, int y, int w, int h) {
+    ((org.netbeans.lib.awtextra.AbsoluteLayout) cont.getLayout())
+        .addLayoutComponent(c, new org.netbeans.lib.awtextra.AbsoluteConstraints(x, y, w, h));
+}
+
+private void activarAjusteAutomatico() {
+    if (ajusteActivado) return;
     ajusteActivado = true;
 
     final java.awt.Container cp = getContentPane();
     final java.util.Map<java.awt.Component, java.awt.Rectangle> originales = new java.util.HashMap<>();
     int maxX = 0, maxY = 0;
-
     for (java.awt.Component c : cp.getComponents()) {
         java.awt.Rectangle r = c.getBounds();
         originales.put(c, r);
         maxX = Math.max(maxX, r.x + r.width);
         maxY = Math.max(maxY, r.y + r.height);
     }
-    final int baseW = maxX;
-    final int baseH = maxY;
+    final int baseW = maxX, baseH = maxY;
+
+    // el encabezado se estira con su mismo color morado
+    jLabel2.setOpaque(true);
+    jLabel2.setBackground(new Color(69, 8, 206));
+    jLabel2.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
 
     final Runnable ajustar = () -> {
         int dw = Math.max(0, cp.getWidth() - baseW);
@@ -777,15 +826,14 @@ public Controlador.CreditoClienteController getCreditoClienteController() {
             java.awt.Rectangle r = originales.get(c);
             if (r == null) continue;
 
-            boolean pegadoIzquierda = r.x == 0 && r.width < 300;   // menú lateral
-            boolean franjaSuperior = r.height < 200;                // encabezado
-
-            if (pegadoIzquierda) {
-                c.setBounds(r.x, r.y, r.width, r.height + dh);               // crece a lo alto
-            } else if (franjaSuperior) {
-                c.setBounds(r.x, r.y, r.width + dw, r.height);               // crece a lo ancho
-            } else {
-                c.setBounds(r.x, r.y, r.width + dw, r.height + dh);          // contenido: ancho y alto
+            if (c == jPanel1) {                       // menú lateral: crece a lo alto
+                poner(cp, c, r.x, r.y, r.width, r.height + dh);
+            } else if (c == menu) {                   // botón "menu": se pega a la derecha
+                poner(cp, c, r.x + dw, r.y, r.width, r.height);
+            } else if (c == jLabel2) {                // encabezado: crece a lo ancho
+                poner(cp, c, r.x, r.y, r.width + dw, r.height);
+            } else {                                  // pestañas: ancho y alto
+                poner(cp, c, r.x, r.y, r.width + dw, r.height + dh);
             }
         }
         cp.revalidate();
@@ -793,10 +841,7 @@ public Controlador.CreditoClienteController getCreditoClienteController() {
     };
 
     cp.addComponentListener(new java.awt.event.ComponentAdapter() {
-        @Override
-        public void componentResized(java.awt.event.ComponentEvent e) {
-            ajustar.run();
-        }
+        @Override public void componentResized(java.awt.event.ComponentEvent e) { ajustar.run(); }
     });
     ajustar.run();
 }
@@ -2822,6 +2867,7 @@ public void ListarConfig() {
         if (historialController == null) {
             historialController = new HistorialVentasController(panelHistorialVentas, idEmpresaActiva);
         }
+        historialController.abrir();   // antes: cargarVentas()
         historialController.cargarVentas();
     } 
         
@@ -3877,7 +3923,10 @@ private void abrirVentanaBuscar() {
     }//GEN-LAST:event_jButton2ActionPerformed
 
     private void formWindowActivated(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowActivated
-if (sistemaYaIniciado) cargarPromosVigentes();
+   if (sistemaYaIniciado) {
+        cargarPromosVigentes();
+        actualizarVentasHoy();
+    }
     TotalPagarX();
     EnterClienteVenta(false);
     EnterClienteCredit();
@@ -4614,7 +4663,6 @@ if (promosVigentes == null || promosVigentes.isEmpty() || m.getRowCount() == 0) 
     
 }
 
-// Pinta las filas de promo en verde y cursiva
 private void instalarRendererPromo() {
     for (int c = 0; c < TableVenta.getColumnCount(); c++) {
         final TableCellRenderer base = TableVenta.getColumnModel().getColumn(c).getCellRenderer();
@@ -4630,5 +4678,71 @@ private void instalarRendererPromo() {
             return comp;
         });
     }
+}
+private void activarAjusteVenta() {
+    if (ajusteVentaActivado) return;
+    ajusteVentaActivado = true;
+
+    final java.util.Map<java.awt.Component, java.awt.Rectangle> orig = new java.util.HashMap<>();
+    for (java.awt.Component c : jPanel2.getComponents()) orig.put(c, c.getBounds());
+
+    final int BASE_W = 1110, BASE_H = 620;   // tamaño original del diseño
+
+    final Runnable ajustar = () -> {
+        int dw = Math.max(0, jPanel2.getWidth() - BASE_W);
+        int dh = Math.max(0, jPanel2.getHeight() - BASE_H);
+        int dwTabla = (int) (dw * 0.6);
+        int dwVerd  = dw - dwTabla;
+
+        // Borde inferior de la tabla (ya ajustado)
+        java.awt.Rectangle rt = orig.get(jScrollPane1);
+        int tablaBottom = rt.y + rt.height + dh;
+
+        // Parte superior del grupo "Total a pagar" (etiqueta + valor)
+        java.awt.Rectangle rl = orig.get(jLabel10);
+        java.awt.Rectangle rv = orig.get(lblEnviaTotal);
+        int topGrupo = Math.min(rl.y, rv.y);
+        int dyTotal  = (tablaBottom + 15) - topGrupo;   // 15 px debajo de la tabla
+
+        // Desplazamiento horizontal único para etiqueta, valor y botón
+        int desplTotal = 300;
+
+        // Posición final del grupo "Total a pagar"
+        int yTotal = topGrupo + dyTotal;
+        int altoGrupo = Math.max(rl.y + rl.height, rv.y + rv.height) - topGrupo;
+        int yCobrar = yTotal + altoGrupo + 10;           // 10 px debajo del total
+
+        // Borde derecho del valor "0.00" ya desplazado
+        int xDerechaTotal = rv.x + dwTabla - desplTotal + rv.width + 80;
+
+        for (java.awt.Component c : jPanel2.getComponents()) {
+            java.awt.Rectangle r = orig.get(c);
+            if (r == null) continue;
+
+            if (c == jScrollPane1) {
+                poner(jPanel2, c, r.x, r.y, r.width + dwTabla, r.height + dh);
+            } else if (c == panelVerduleria) {
+                poner(jPanel2, c, r.x + dwTabla, r.y, r.width + dwVerd, r.height + dh);
+            } else if (c == jLabel10) {                  // etiqueta "Total a pagar"
+                poner(jPanel2, c, r.x + dwTabla - desplTotal, r.y + dyTotal, r.width, r.height);
+            } else if (c == lblEnviaTotal) {             // valor 0.00
+                poner(jPanel2, c, r.x + dwTabla - desplTotal, r.y + dyTotal, r.width + 80, r.height);
+            } else if (c == btnCobrar) {                 // <-- nombre real de tu botón
+                    poner(jPanel2, c, xDerechaTotal - r.width - 60, yCobrar, r.width, r.height);
+            } else if (r.y < 160 && r.x >= 500) {
+                poner(jPanel2, c, r.x + dw, r.y, r.width, r.height);
+            } else if (r.y >= 480) {
+                int nx = (r.x >= 700) ? r.x + dw : r.x;
+                poner(jPanel2, c, nx, r.y + dh, r.width, r.height);
+            }
+        }
+        jPanel2.revalidate();
+        jPanel2.repaint();
+    };
+
+    jPanel2.addComponentListener(new java.awt.event.ComponentAdapter() {
+        @Override public void componentResized(java.awt.event.ComponentEvent e) { ajustar.run(); }
+    });
+    SwingUtilities.invokeLater(ajustar);
 }
 }

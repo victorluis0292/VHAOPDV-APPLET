@@ -17,16 +17,16 @@ import Controlador.HistorialVentasController;
 /**
  * Reporte general con filtrado por empresa (optimizado)
  */
-public class ReporteGeneral extends JFrame {
-    public static ReporteGeneral instance;
+public class Analisis extends JFrame {
+    public static Analisis instance;
     private JLabel lblFechaActual, lblVentas, lblIngresos, lblSaldoInicial, lblEgresos, lblGanancia, lblTotal;
     private JLabel valorVentas, valorIngresos, valorSaldoInicial, valorEgresos, valorGanancia, valorTotal;
     private JButton btnHoy, btnSemana, btnMes, btnAnio, btnRango;
     private JDateChooser midate;
     private JComboBox<String> tipoReporteCombo;
 
-    public ReporteGeneral() {
-        setTitle("Reporte General");
+    public Analisis() {
+        setTitle("Análisis");
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setSize(500, 400);
         setLocationRelativeTo(null);
@@ -133,7 +133,7 @@ public class ReporteGeneral extends JFrame {
 
         btnDetalleVentas.addActionListener(e -> new VentasDiaForm().setVisible(true));
         btnDetalleIngresos.addActionListener(e -> new verMovimientosCaja().setVisible(true));
-        btnDetalleTotal.addActionListener(e -> new OpcVentasDelTurno().setVisible(true));
+        btnDetalleTotal.addActionListener(e -> new OpcVentasDelTurnoNA().setVisible(true));
 
         return panel;
     }

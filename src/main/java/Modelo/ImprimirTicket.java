@@ -268,6 +268,10 @@ public class ImprimirTicket {
                                          double pagaCon, double cambio, String cliente, Date fechaVenta) {
         StringBuilder sb = new StringBuilder();
         int folio = obtenerFolio(idVenta);
+        
+        if (abonos == null || abonos.isEmpty()) {      // <-- agregar
+            abonos = obtenerAbonos(idVenta);           // <-- agregar
+        } 
 
         String nombreNegocio = "Mi Negocio";
         String direccion = "Mi Dirección";
@@ -331,7 +335,10 @@ public class ImprimirTicket {
                                                     List<String[]> productos, List<String[]> abonos, Date fechaVenta) {
         StringBuilder sb = new StringBuilder();
         int folio = obtenerFolio(idVenta);
-
+        
+        if (abonos == null || abonos.isEmpty()) {      // <-- agregar
+            abonos = obtenerAbonos(idVenta);           // <-- agregar
+        }                                              // <-- agregar
         String nombreNegocio = "Mi Negocio";
         String direccion = "Mi Dirección";
         String telefono = "Mi Teléfono";
@@ -394,6 +401,9 @@ public class ImprimirTicket {
         StringBuilder sb = new StringBuilder();
         int folio = obtenerFolio(idVenta);
 
+          if (abonos == null || abonos.isEmpty()) {      // <-- agregar
+            abonos = obtenerAbonos(idVenta);           // <-- agregar
+        }                                              // <-- agregar
         String nombreNegocio = "Mi Negocio";
         String direccion = "Mi Dirección";
         String telefono = "Mi Teléfono";
@@ -556,6 +566,36 @@ public class ImprimirTicket {
                 "[TICKET] Fecha inválida: " + fechaHora);
         return fechaHora;
     }
+}
+    private static List<String[]> obtenerAbonos(int idVenta) {
+    List<String[]> abonos = new java.util.ArrayList<>();
+    String sql =
+        "SELECT a.monto, a.nota, " +
+        "  (SELECT p.nombre FROM detalle d JOIN productos p ON d.id_pro = p.id " +
+        "   WHERE d.id_venta = a.id_venta_abono LIMIT 1) AS producto " +
+        "FROM abonos_credito a " +
+        "WHERE a.id_venta_abono = ?";
+    try (Connection con = Conexion.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setInt(1, idVenta);
+        try (ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                String producto = rs.getString("producto");
+                String nota = rs.getString("nota");
+                StringBuilder nombre = new StringBuilder("ABONO REALIZADO");
+                if (producto != null && !producto.isEmpty()) nombre.append(" - ").append(producto);
+                if (nota != null && !nota.isEmpty()) nombre.append(" - ").append(nota);
+                abonos.add(new String[]{
+                    nombre.toString(),
+                    "1",
+                    String.valueOf(rs.getDouble("monto"))
+                });
+            }
+        }
+    } catch (SQLException e) {
+        System.err.println("[TICKET] Error al leer abonos: " + e.getMessage());
+    }
+    return abonos;
 }
     
  

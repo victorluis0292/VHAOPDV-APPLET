@@ -39,6 +39,9 @@ public class MovimientosCaja extends javax.swing.JFrame {
     public JTextField txtNotaEgreso;
     public JComboBox<String> cmbGastoEgreso;
     public JButton btnGuardarEgreso;
+    
+    
+    public Runnable onGuardado;
 
     private CardLayout cardLayout;
     private JPanel panelContenido;

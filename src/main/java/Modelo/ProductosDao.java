@@ -214,4 +214,15 @@ public class ProductosDao {
             return false;
         }
     }
+    public int obtenerSiguienteId() {
+    String sql = "SELECT COALESCE(MAX(id), 0) + 1 FROM productos";
+    try (Connection con = Conexion.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql);
+         ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) return rs.getInt(1);
+    } catch (SQLException e) {
+        Utilidades.LogUtil.error("Error al obtener siguiente id de producto", e);
+    }
+    return -1;
+}
 }

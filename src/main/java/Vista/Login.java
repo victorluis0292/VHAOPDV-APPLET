@@ -1,4 +1,3 @@
-
 package Vista;
 
 import Controlador.EmpresaController;
@@ -390,14 +389,7 @@ public class Login extends JFrame {
             CashInBoxDAO cashDAO = new CashInBoxDAO();
             CashInBox cash = new CashInBox(monto, usuario, idEmpresa);
 
-            if (!cashDAO.registrarSaldoInicial(cash, idEmpresa)) {
-                JOptionPane.showMessageDialog(
-                        cashInBoxForm,
-                        "Error al registrar saldo inicial."
-                );
-                return;
-            }
-
+            // 1) Abrir el turno primero, para tener su id
             TurnoModel nuevoTurno = new TurnoModel();
             nuevoTurno.setUsuario(usuario);
             nuevoTurno.setIdEmpresa(idEmpresa);
@@ -413,6 +405,15 @@ public class Login extends JFrame {
                         "Error al abrir turno."
                 );
                 return;
+            }
+
+            // 2) Guardar el saldo inicial ligado al turno recién creado
+            if (!cashDAO.registrarSaldoInicial(cash, idEmpresa, nuevoTurno.getId())) {
+                JOptionPane.showMessageDialog(
+                        cashInBoxForm,
+                        "Turno abierto, pero no se pudo guardar el saldo inicial en el historial."
+                );
+                // el turno ya existe con su saldo_inicial, así que se continúa
             }
 
             JOptionPane.showMessageDialog(

@@ -4,7 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.math.BigDecimal;
 
-public class ArchedBox extends OpcVentasDelTurno {
+public class ArchedBox extends OpcVentasDelTurnoNA {
     public static ArchedBox instance;
     private JPanel panelInferior;
     private JLabel lblTotalCaja; // 🔵 Ahora como atributo

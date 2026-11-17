@@ -228,11 +228,44 @@ ps.setObject(7, fechaHoraLocal);
                     v.setFolio(rs.getInt("folio"));
                     v.setCancelada(rs.getInt("cancelada") == 1);
                     lista.add(v);
-                    
+
                 }
             }
         } catch (SQLException e) {
             System.err.println(e);
+        }
+        return lista;
+    }
+
+    // Listar ventas por empresa y por TURNO (Historial de Ventas)
+    // idTurno == 0  ->  ventas anteriores sin turno (id_turno IS NULL)
+    public List<Venta> ListarVentasPorTurno(int idEmpresa, int idTurno) {
+        List<Venta> lista = new ArrayList<>();
+        String filtroTurno = (idTurno == 0) ? "v.id_turno IS NULL" : "v.id_turno = ?";
+        String sql = "SELECT c.id AS id_cli, c.nombre, v.* "
+                   + "FROM clientes c INNER JOIN ventas v ON c.id = v.cliente "
+                   + "WHERE v.id_empresa = ? AND " + filtroTurno + " ORDER BY v.id DESC";
+        try (Connection con = cn.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, idEmpresa);
+            if (idTurno != 0) {
+                ps.setInt(2, idTurno);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Venta v = new Venta();
+                    v.setId(rs.getInt("id"));
+                    v.setIdEmpresa(rs.getInt("id_empresa"));
+                    v.setNombre_cli(rs.getString("nombre"));
+                    v.setVendedor(rs.getString("vendedor"));
+                    v.setTotal(rs.getDouble("total"));
+                    v.setFolio(rs.getInt("folio"));
+                    v.setCancelada(rs.getInt("cancelada") == 1);
+                    lista.add(v);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error en ListarVentasPorTurno: " + e);
         }
         return lista;
     }
@@ -599,7 +632,7 @@ if (fechaHora != null) {
                  + "  -" + moneda.format((double) p[3])));
                  }
               //promociones //
-                
+
                 doc.add(Chunk.NEWLINE);
                 doc.add(new Paragraph("TOTAL: " + moneda.format(venta.getTotal()), negrita));
                 doc.close();
@@ -629,7 +662,7 @@ if (fechaHora != null) {
             return false;
         }
     }
-    
+
     // promociones//
     // Guarda la promoción aplicada a una venta (se llama después de RegistrarVenta)
 public int RegistrarVentaPromocion(int idVenta, int idPromocion, String descripcion,
@@ -735,4 +768,40 @@ public void cancelarVenta(int idVenta, int idEmpresa, String usuario, String mot
             throw e;
         }
     }
-}}
+}
+
+/** Total de ventas exitosas (sin canceladas) de un día. */
+public double totalVendidoDelDia(int idEmpresa, java.time.LocalDate dia) {
+    String sql = "SELECT COALESCE(SUM(total),0) FROM ventas "
+               + "WHERE id_empresa = ? AND DATE(fecha_hora) = ? AND cancelada = 0";
+    try (Connection con = cn.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setInt(1, idEmpresa);
+        ps.setDate(2, java.sql.Date.valueOf(dia));
+        try (ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) return rs.getDouble(1);
+        }
+    } catch (SQLException e) {
+        System.err.println("Error en totalVendidoDelDia: " + e);
+    }
+    return 0;
+}
+
+/** Total de ventas exitosas (sin canceladas) de un turno. */
+public double totalVendidoDelTurno(int idEmpresa, int idTurno) {
+    String sql = "SELECT COALESCE(SUM(total),0) FROM ventas "
+               + "WHERE id_empresa = ? AND id_turno = ? AND cancelada = 0";
+    try (Connection con = cn.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setInt(1, idEmpresa);
+        ps.setInt(2, idTurno);
+        try (ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) return rs.getDouble(1);
+        }
+    } catch (SQLException e) {
+        System.err.println("Error en totalVendidoDelTurno: " + e);
+    }
+    return 0;
+}
+
+}

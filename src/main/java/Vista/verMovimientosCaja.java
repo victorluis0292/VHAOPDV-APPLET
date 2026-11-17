@@ -3,14 +3,16 @@ import Estilos.Estilos;
 import com.toedter.calendar.JDateChooser; // estilo calendar
 
 import Modelo.Conexion;
-import static Vista.OpcVentasDelTurno.instance;
+import static Vista.OpcVentasDelTurnoNA.instance;
 import com.toedter.calendar.JDateChooser;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.sql.*;
 import java.text.SimpleDateFormat;
-
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import Modelo.TurnoModel;
 /**
  *
  * @author vic
@@ -18,6 +20,7 @@ import java.text.SimpleDateFormat;
 public class verMovimientosCaja extends javax.swing.JFrame {
       public static verMovimientosCaja instance;
     private static final SimpleDateFormat FECHA_FORMATO = new SimpleDateFormat("yyyy-MM-dd");
+    private JButton btnNuevoMovimiento;
 
     /**
      * Creates new form Corte
@@ -41,7 +44,7 @@ public class verMovimientosCaja extends javax.swing.JFrame {
             }
         });
     }
- private void cargarDatos() {
+private void cargarDatos() {
     DefaultTableModel modelo = new DefaultTableModel();
     modelo.addColumn("Tipo");
     modelo.addColumn("Operacion");
@@ -50,20 +53,23 @@ public class verMovimientosCaja extends javax.swing.JFrame {
     modelo.addColumn("Nota");
     modelo.addColumn("Fecha");
 
-    // Fecha seleccionada o fecha actual en formato yyyy-MM-dd
-    String fechaSeleccionada = (Midate.getDate() != null)
-        ? FECHA_FORMATO.format(Midate.getDate())
-        : FECHA_FORMATO.format(new java.util.Date());
+    TurnoModel turno = Controlador.TurnoController.getTurnoGlobal();
+    if (turno == null) {
+        TablaEgresos.setModel(modelo);
+        TotalMonto.setText("0.00");
+        TotalMontoIngresos.setText("0.00");
+        return;
+    }
 
-    int idEmpresa = Sistema.getIdEmpresaActiva(); // ID de la empresa activa
+    int idEmpresa = Sistema.getIdEmpresaActiva();
 
     double totalEgresos = 0;
     double totalIngresos = 0;
 
     String sql = "SELECT tipo, concepto, nota, monto, gasto, fecha " +
                  "FROM movimientos_caja " +
-                 "WHERE DATE(fecha) = ? AND id_empresa = ? " +
-                 "ORDER BY fecha DESC";
+                 "WHERE id_turno = ? AND id_empresa = ? " +
+                 "ORDER BY id DESC";
 
     try (Connection con = new Conexion().getConnection()) {
         if (con == null) {
@@ -72,8 +78,8 @@ public class verMovimientosCaja extends javax.swing.JFrame {
         }
 
         try (PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, fechaSeleccionada);
-            ps.setInt(2, idEmpresa); // parámetro de id_empresa
+            ps.setInt(1, turno.getId());
+            ps.setInt(2, idEmpresa);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -85,7 +91,7 @@ public class verMovimientosCaja extends javax.swing.JFrame {
                     String concepto = rs.getString("concepto");
                     String nota = rs.getString("nota");
                     double monto = rs.getDouble("monto");
-                    Timestamp fecha = rs.getTimestamp("fecha");
+                    java.sql.Date fecha = rs.getDate("fecha");
 
                     modelo.addRow(new Object[]{
                         tipo,
@@ -113,7 +119,29 @@ public class verMovimientosCaja extends javax.swing.JFrame {
         JOptionPane.showMessageDialog(this, "Error al cargar datos:\n" + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
     }
 }
+private void abrirMovimientosCaja() {
+    MovimientosCaja form;
 
+    // Si ya hay una abierta, la reutiliza en vez de abrir otra
+    if (MovimientosCaja.instance != null && MovimientosCaja.instance.isDisplayable()) {
+        form = MovimientosCaja.instance;
+    } else {
+        form = new MovimientosCaja();
+        new Controlador.MovimientosCajaController(form);
+        // Si la cierran, también refresca
+        form.addWindowListener(new WindowAdapter() {
+            @Override public void windowClosed(WindowEvent e) { cargarDatos(); }
+        });
+    }
+
+    // Al guardar, vuelve a la fecha de hoy y recarga la tabla
+    form.onGuardado = () -> {
+        Midate.setDate(new java.util.Date());
+        cargarDatos();
+    };
+    form.setVisible(true);
+    form.toFront();
+}
   
     private void initComponents() {
         jScrollPane1 = new JScrollPane();
@@ -142,44 +170,50 @@ public class verMovimientosCaja extends javax.swing.JFrame {
 
         MontoTotalIngresosV.setText("Total Ingresos:");
         TotalMontoIngresos.setText("0.00");
+        
+        btnNuevoMovimiento = new JButton("Nuevo movimiento");
+        btnNuevoMovimiento.addActionListener(e -> abrirMovimientosCaja());
 
         GroupLayout layout = new GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
 
         layout.setHorizontalGroup(
-            layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addGap(20, 20, 20)
-                .addComponent(Midate, GroupLayout.PREFERRED_SIZE, 200, GroupLayout.PREFERRED_SIZE)
-                .addGap(40, 40, 40)
-                .addComponent(MontoTotalV)
-                .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(TotalMonto, GroupLayout.PREFERRED_SIZE, 100, GroupLayout.PREFERRED_SIZE)
-                .addGap(20, 20, 20)
-                .addComponent(MontoTotalIngresosV)
-                .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(TotalMontoIngresos, GroupLayout.PREFERRED_SIZE, 100, GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(30, Short.MAX_VALUE))
-            .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jScrollPane1, GroupLayout.DEFAULT_SIZE, 640, Short.MAX_VALUE)
-                .addContainerGap())
-        );
+    layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+    .addGroup(layout.createSequentialGroup()
+        .addGap(20, 20, 20)
+        .addComponent(Midate, GroupLayout.PREFERRED_SIZE, 200, GroupLayout.PREFERRED_SIZE)
+        .addGap(40, 40, 40)
+        .addComponent(MontoTotalV)
+        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+        .addComponent(TotalMonto, GroupLayout.PREFERRED_SIZE, 100, GroupLayout.PREFERRED_SIZE)
+        .addGap(20, 20, 20)
+        .addComponent(MontoTotalIngresosV)
+        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+        .addComponent(TotalMontoIngresos, GroupLayout.PREFERRED_SIZE, 100, GroupLayout.PREFERRED_SIZE)
+        .addGap(20, 20, 20)
+        .addComponent(btnNuevoMovimiento)
+        .addContainerGap(30, Short.MAX_VALUE))
+    .addGroup(layout.createSequentialGroup()
+        .addContainerGap()
+        .addComponent(jScrollPane1, GroupLayout.DEFAULT_SIZE, 640, Short.MAX_VALUE)
+        .addContainerGap())
+);
 
         layout.setVerticalGroup(
-            layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addGap(20, 20, 20)
-                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-                    .addComponent(Midate, GroupLayout.PREFERRED_SIZE, 30, GroupLayout.PREFERRED_SIZE)
-                    .addComponent(MontoTotalV)
-                    .addComponent(TotalMonto)
-                    .addComponent(MontoTotalIngresosV)
-                    .addComponent(TotalMontoIngresos))
-                .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(jScrollPane1, GroupLayout.DEFAULT_SIZE, 320, Short.MAX_VALUE)
-                .addGap(20, 20, 20))
-        );
+    layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+    .addGroup(layout.createSequentialGroup()
+        .addGap(20, 20, 20)
+        .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+            .addComponent(Midate, GroupLayout.PREFERRED_SIZE, 30, GroupLayout.PREFERRED_SIZE)
+            .addComponent(MontoTotalV)
+            .addComponent(TotalMonto)
+            .addComponent(MontoTotalIngresosV)
+            .addComponent(TotalMontoIngresos)
+            .addComponent(btnNuevoMovimiento))
+        .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
+        .addComponent(jScrollPane1, GroupLayout.DEFAULT_SIZE, 320, Short.MAX_VALUE)
+        .addGap(20, 20, 20))
+);
 
         pack();
         setLocationRelativeTo(null);

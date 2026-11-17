@@ -123,5 +123,35 @@ public class CashInBoxDAO {
         }
         return BigDecimal.ZERO;
     }
+    // Registra el saldo inicial ligado a un turno
+public boolean registrarSaldoInicial(CashInBox cash, int idEmpresa, int idTurno) {
+    String sql = "INSERT INTO initialcashbalance (amount, usuario, fecha, id_empresa, id_turno) VALUES (?, ?, NOW(), ?, ?)";
+    try (Connection con = Conexion.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setBigDecimal(1, cash.getAmount());
+        ps.setString(2, cash.getUsuario());
+        ps.setInt(3, idEmpresa);
+        ps.setInt(4, idTurno);
+        return ps.executeUpdate() > 0;
+    } catch (SQLException e) {
+        e.printStackTrace();
+        return false;
+    }
+}
+
+// Saldo inicial de un turno específico
+public BigDecimal obtenerSaldoInicialPorTurno(int idTurno) {
+    String sql = "SELECT amount FROM initialcashbalance WHERE id_turno = ? ORDER BY id DESC LIMIT 1";
+    try (Connection con = Conexion.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+        ps.setInt(1, idTurno);
+        try (ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) return rs.getBigDecimal("amount");
+        }
+    } catch (SQLException e) {
+        System.out.println("Error al obtener saldo inicial del turno: " + e.getMessage());
+    }
+    return BigDecimal.ZERO;
+}
     
 }

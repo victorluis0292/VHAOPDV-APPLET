@@ -30,6 +30,7 @@ import java.util.regex.PatternSyntaxException;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
+import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -37,6 +38,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableRowSorter;
+import javax.swing.border.LineBorder;
 
 public class PanelProductos extends JPanel {
 
@@ -54,7 +56,7 @@ public class PanelProductos extends JPanel {
     public JButton btnPromociones;
     public JButton btnNuevaCategoria;
     public JButton btnGenerarCodigoBarras;
-
+    public JButton btnGenerarCodigo;
     private ButtonGroup grupoTipoVenta;
     private final CategoriaDao categoriaDao = new CategoriaDao();
     private int idEmpresa;
@@ -68,8 +70,12 @@ public class PanelProductos extends JPanel {
     private TableRowSorter<DefaultTableModel> sorterProductos;
     private final Runnable onProductosActualizados;
     private boolean validandoCodigo = false;
+    private JLabel lblAvisoPrecio;
+    private Border bordePrecioOriginal;
+    private static final Color ROJO = new Color(220, 53, 69);
+    private static final Color VERDE = new Color(40, 167, 69);
 
-    // ============================================================
+        // ============================================================
     // CONSTRUCTOR
     // ============================================================
 
@@ -127,6 +133,7 @@ public class PanelProductos extends JPanel {
         txtBuscar = new JTextField();
         txtBuscar.setPreferredSize(new Dimension(350, 34));
         Estilos.estiloCampo(txtBuscar);
+       
 
         panelBusqueda.add(lblBuscar);
         panelBusqueda.add(txtBuscar);
@@ -189,6 +196,7 @@ public class PanelProductos extends JPanel {
         Estilos.estiloCampo(txtCantPro);
         Estilos.estiloCampo(txtPrecioPro);
         Estilos.estiloCampo(txtPreciocompraPro);
+        bordePrecioOriginal = txtPrecioPro.getBorder();
 
         // Radio buttons
         rbPorUnidad = new JRadioButton("Unidad", true);
@@ -276,6 +284,11 @@ public class PanelProductos extends JPanel {
         // ID oculto
         txtIdproducto = new JTextField();
         txtIdproducto.setVisible(false);
+        
+        // aviso
+        lblAvisoPrecio = new JLabel(" ");
+        lblAvisoPrecio.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblAvisoPrecio.setVisible(false);
 
         // Agregar campos
         int fila = 0;
@@ -284,13 +297,35 @@ public class PanelProductos extends JPanel {
         gbc.gridwidth = 2;
         contenidoFormulario.add(tituloFormulario, gbc);
 
-        agregarCampo(contenidoFormulario, "Código:", txtCodigoPro, gbc, fila++);
+        btnGenerarCodigo = new JButton("#");
+        btnGenerarCodigo.setPreferredSize(new Dimension(45, 34));
+        btnGenerarCodigo.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        btnGenerarCodigo.setToolTipText("Generar código (1000 + siguiente ID)");
+        btnGenerarCodigo.setFocusable(false);
+        Estilos.estiloBotonAzul(btnGenerarCodigo);
+
+        JPanel panelCodigo = new JPanel(new BorderLayout(5, 0));
+        panelCodigo.setOpaque(false);
+        panelCodigo.add(txtCodigoPro, BorderLayout.CENTER);
+        panelCodigo.add(btnGenerarCodigo, BorderLayout.EAST);
+
+        agregarCampo(contenidoFormulario, "Código:", panelCodigo, gbc, fila++);
         agregarCampo(contenidoFormulario, "Descripción:", txtDesPro, gbc, fila++);
         agregarCampo(contenidoFormulario, "Se vende:", panelTipoVenta, gbc, fila++);
         agregarCampo(contenidoFormulario, "Categoría:", panelCategoria, gbc, fila++);
         agregarCampo(contenidoFormulario, "Cantidad:", txtCantPro, gbc, fila++);
         agregarCampo(contenidoFormulario, "Precio Venta:", txtPrecioPro, gbc, fila++);
         agregarCampo(contenidoFormulario, "Precio Compra:", txtPreciocompraPro, gbc, fila++);
+
+        // Aviso de validación de precios (debajo de Precio Compra)
+        gbc.gridx = 1;
+        gbc.gridy = fila++;
+        gbc.gridwidth = 1;
+        gbc.weightx = 1.0;
+        gbc.insets = new Insets(0, 5, 3, 5);
+        contenidoFormulario.add(lblAvisoPrecio, gbc);
+        gbc.insets = new Insets(3, 5, 3, 5);
+
         agregarCampo(contenidoFormulario, "Proveedor:", cbxProveedorPro, gbc, fila++);
         agregarCampo(contenidoFormulario, "Imagen / Catálogo:", panelImagen, gbc, fila++);
 
@@ -565,9 +600,16 @@ private void cargarProductoEnFormulario(int filaReal) {
     btnGuardarpro.setEnabled(false);
     btnGenerarCodigoBarras.setEnabled(true);
 }
-    private String valorTabla(int fila, int columna) {
+       private String valorTabla(int fila, int columna) {
         Object valor = modelo.getValueAt(fila, columna);
         return valor == null ? "" : valor.toString();
+    }
+
+    private boolean codigoExisteEnTabla(String codigo) {
+        for (int i = 0; i < modelo.getRowCount(); i++) {
+            if (modelo.getValueAt(i, 1).toString().equalsIgnoreCase(codigo)) return true;
+        }
+        return false;
     }
 
     // ============================================================
@@ -898,6 +940,29 @@ private void cargarProductoEnFormulario(int filaReal) {
     new FrmPromociones((Frame) SwingUtilities.getWindowAncestor(this), idEmpresa, proDao).setVisible(true));
         // --- Nueva categoría ---
     btnNuevaCategoria.addActionListener(e -> abrirDialogoAgregarCategoria());
+            // --- Generar código (productos a granel / sin código de barras) ---
+        btnGenerarCodigo.addActionListener(e -> {
+            if (!txtIdproducto.getText().trim().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Estás editando un producto. Presiona «Nuevo» para generar un código nuevo.");
+                return;
+            }
+
+            int siguienteId = proDao.obtenerSiguienteId();
+            if (siguienteId <= 0) {
+                JOptionPane.showMessageDialog(this, "No se pudo generar el código.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            String codigo = "1000" + siguienteId;
+            while (codigoExisteEnTabla(codigo)) {
+                siguienteId++;
+                codigo = "1000" + siguienteId;
+            }
+
+            txtCodigoPro.setText(codigo);
+            txtDesPro.requestFocusInWindow();
+        });
 
         // --- Exportar ---
         btnExportarExcel.addActionListener(e -> {
@@ -1044,6 +1109,7 @@ Runnable validarCodigoExistente = () -> {
                         return;
                     }
                 }
+                                    if (!preciosValidos()) return;
 
                 try {
                     Productos pro = new Productos();
@@ -1136,8 +1202,8 @@ btnNuevoPro.addActionListener(e -> {
             }
 
             if (!txtCodigoPro.getText().trim().isEmpty() && !txtDesPro.getText().trim().isEmpty() && !txtPrecioPro.getText().trim().isEmpty()) {
-
-                try {
+                          if (!preciosValidos()) return;
+                    try {
                     Productos pro = new Productos();
                     pro.setId(Integer.parseInt(txtIdproducto.getText().trim()));
                     pro.setCodigo(txtCodigoPro.getText().trim());
@@ -1205,6 +1271,13 @@ btnNuevoPro.addActionListener(e -> {
             @Override
             public void changedUpdate(DocumentEvent e) { aplicarFiltroBusqueda(); }
         });
+        DocumentListener listenerPrecios = new DocumentListener() {
+    @Override public void insertUpdate(DocumentEvent e) { validarPrecios(); }
+    @Override public void removeUpdate(DocumentEvent e) { validarPrecios(); }
+    @Override public void changedUpdate(DocumentEvent e) { validarPrecios(); }
+    };
+    txtPrecioPro.getDocument().addDocumentListener(listenerPrecios);
+    txtPreciocompraPro.getDocument().addDocumentListener(listenerPrecios);
     }
 
     // ============================================================
@@ -1240,6 +1313,7 @@ btnNuevoPro.addActionListener(e -> {
         btnGuardarpro.setEnabled(true);
         btnEditarpro.setEnabled(false);
         btnGenerarCodigoBarras.setEnabled(false);
+        validarPrecios();
     }
 
     // ============================================================
@@ -1260,6 +1334,7 @@ btnNuevoPro.addActionListener(e -> {
         try {
             RowFilter<DefaultTableModel, Integer> filtro = RowFilter.regexFilter("(?i)" + Pattern.quote(texto));
             sorterProductos.setRowFilter(filtro);
+            
         } catch (PatternSyntaxException ex) {
             sorterProductos.setRowFilter(null);
         }
@@ -1624,6 +1699,68 @@ btnNuevoPro.addActionListener(e -> {
 
         }).start();
     }
+    
+    // aviso precio venta debe ser mayor que precio compra
+            private Double parsearPrecio(JTextField campo) {
+            try {
+                String t = campo.getText().trim().replace(",", ".");
+                return t.isEmpty() ? null : Double.parseDouble(t);
+            } catch (NumberFormatException ex) {
+                return null;
+            }
+        }
+
+        private void marcarCampoPrecio(JTextField campo, Color color) {
+            if (color == null) {
+                campo.setBorder(bordePrecioOriginal);
+            } else {
+                campo.setBorder(BorderFactory.createCompoundBorder(
+                        new LineBorder(color, 2, true),
+                        new EmptyBorder(0, 6, 0, 6)));
+            }
+        }
+
+        private void validarPrecios() {
+            Double venta = parsearPrecio(txtPrecioPro);
+            Double compra = parsearPrecio(txtPreciocompraPro);
+
+            // Aún no hay datos suficientes: estado neutro
+            if (venta == null || compra == null) {
+                marcarCampoPrecio(txtPrecioPro, null);
+                marcarCampoPrecio(txtPreciocompraPro, null);
+                lblAvisoPrecio.setVisible(false);
+                return;
+            }
+
+            if (venta <= compra) {
+                marcarCampoPrecio(txtPrecioPro, ROJO);
+                marcarCampoPrecio(txtPreciocompraPro, ROJO);
+                lblAvisoPrecio.setForeground(ROJO);
+                lblAvisoPrecio.setText("⚠ El precio de venta debe ser mayor al de compra");
+            } else {
+                marcarCampoPrecio(txtPrecioPro, VERDE);
+                marcarCampoPrecio(txtPreciocompraPro, VERDE);
+                double ganancia = venta - compra;
+                    double margen = (ganancia / venta) * 100;   // margen sobre venta
+                    lblAvisoPrecio.setForeground(VERDE);
+                    lblAvisoPrecio.setText(String.format("✔ Ganancia: $%.2f  (margen %.0f%%)", ganancia, margen));
+                                }
+            lblAvisoPrecio.setVisible(true);
+            lblAvisoPrecio.getParent().revalidate();
+        }
+
+        /** true si los precios son válidos; si no, avisa y enfoca el campo */
+        private boolean preciosValidos() {
+            Double venta = parsearPrecio(txtPrecioPro);
+            Double compra = parsearPrecio(txtPreciocompraPro);
+            if (venta != null && compra != null && venta <= compra) {
+                validarPrecios();
+                txtPrecioPro.requestFocus();
+                txtPrecioPro.selectAll();
+                return false;
+            }
+            return true;
+        }
      // ============================================================
     // PANEL DEL FORMULARIO (ajusta el ancho al scroll)
     // ============================================================

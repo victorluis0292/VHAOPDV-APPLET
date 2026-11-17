@@ -74,6 +74,8 @@ public class MovimientosCajaController implements ActionListener {
             if (guardado) {
                 JOptionPane.showMessageDialog(vista, "Ingreso guardado correctamente.");
                 limpiarCamposIngreso();
+                    if (vista.onGuardado != null) vista.onGuardado.run();   // <-- paso 2
+
                 vista.dispose();
                 AbrirCajaEfectivo.main(null);
 
@@ -130,6 +132,8 @@ public class MovimientosCajaController implements ActionListener {
             if (guardado) {
                 JOptionPane.showMessageDialog(vista, "Egreso guardado correctamente.");
                 limpiarCamposEgreso();
+                    if (vista.onGuardado != null) vista.onGuardado.run();   // <-- paso 2
+
                 vista.dispose();
                 AbrirCajaEfectivo.main(null);
 

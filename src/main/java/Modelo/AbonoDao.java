@@ -40,28 +40,54 @@ public class AbonoDao {
     /**
      * Cambia el estado de los abonos de una venta a '1' (pagado) filtrando por empresa
      */
-    public boolean actualizarAbonosAplicados(int dni, int idVenta) {
-        String sql = "UPDATE abonos_credito SET aplicado = 1, id_venta = ? " +
-                     "WHERE dni = ? AND aplicado = 0 AND id_empresa = ?";
-        try (Connection con = Conexion.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, idVenta);
-            ps.setInt(2, dni);
-            ps.setInt(3, Sistema.getIdEmpresaActiva());
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            System.err.println("Error al actualizar abonos aplicados: " + e.getMessage());
-            return false;
-        }
+   
+/**
+ * Marca los abonos como aplicados y los vincula
+ * con el folio de la liquidación.
+ *
+ * Conserva el id_venta original del abono.
+ */
+public boolean actualizarAbonosAplicados(int dni, int idVenta) {
+
+    String sql = "UPDATE abonos_credito " +
+                 "SET aplicado = 1, id_venta_abono = ? " +
+                 "WHERE dni = ? " +
+                 "AND aplicado = 0 " +
+                 "AND id_empresa = ? " +
+                 "AND id_venta_abono IS NULL";
+
+    try (Connection con = Conexion.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+
+        ps.setInt(1, idVenta);
+        ps.setInt(2, dni);
+        ps.setInt(3, Sistema.getIdEmpresaActiva());
+
+        int actualizados = ps.executeUpdate();
+
+        System.out.println("Abonos vinculados a liquidación: " + actualizados);
+        System.out.println("Folio liquidación: " + idVenta);
+
+        return actualizados >= 0;
+
+    } catch (SQLException e) {
+        System.err.println("Error al actualizar abonos aplicados: " + e.getMessage());
+        return false;
     }
+}
+
 
     /**
      * Obtiene los abonos de una venta filtrando por empresa
      */
     public List<Abono> obtenerAbonosPorVenta(int idVenta) {
         List<Abono> abonos = new ArrayList<>();
-        String sql = "SELECT monto, fecha, id_venta, id_empresa, aplicado FROM abonos_credito " +
-                     "WHERE id_venta = ? AND aplicado = 1 AND id_empresa = ?";
+        String sql = "SELECT monto, fecha, " +
+             "id_venta_abono AS id_venta, id_empresa, aplicado " +
+             "FROM abonos_credito " +
+             "WHERE id_venta_abono = ? " +
+             "AND aplicado = 1 " +
+             "AND id_empresa = ?";
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, idVenta);

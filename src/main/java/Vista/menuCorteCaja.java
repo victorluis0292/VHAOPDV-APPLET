@@ -1,16 +1,17 @@
 package Vista;
 
+import Estilos.PanelCorte;
+import Estilos.PanelCorte.Icono;
+import Estilos.PanelCorte.TarjetaCorte;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Font;
-import java.awt.GridLayout;
-import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JPanel;
-import Controlador.MovimientosCajaController;
 
 public class menuCorteCaja {
 
+    // Se conserva por si otras pantallas lo usan
     public static void aplicarEstilo(JButton boton) {
         boton.setFont(new Font("Segoe UI", Font.BOLD, 16));
         boton.setForeground(Color.WHITE);
@@ -20,7 +21,6 @@ public class menuCorteCaja {
         boton.setFocusPainted(false);
         boton.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // Efecto hover
         boton.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseEntered(java.awt.event.MouseEvent evt) {
@@ -35,34 +35,21 @@ public class menuCorteCaja {
     }
 
     public static void agregarBotonesAJPanel(JPanel panel, String usuario) {
-        // Crear botones
-        JButton btn1 = new JButton("Ventas del Turno");
-        ImageIcon iconoVentas = new ImageIcon(menuCorteCaja.class.getResource("/Img/icon-money inflow.png"));
-        btn1.setIcon(iconoVentas);
-        btn1.setHorizontalTextPosition(JButton.CENTER);
-        btn1.setVerticalTextPosition(JButton.BOTTOM);
 
-        JButton btn2 = new JButton("Operaciones");
-        JButton btn3 = new JButton("Reporte General");
-        JButton btn4 = new JButton("Arqueo De Caja");
-        JButton btn5 = new JButton("Corte Cajero");
-        JButton btn6 = new JButton("Movimientos de caja");
+        // Tarjetas con el estilo PanelCorte
+        TarjetaCorte btn1 = new TarjetaCorte("Ventas del Turno", "Total, efectivo, tarjeta y resumen", Icono.DESCARGA, false);
+        TarjetaCorte btn2 = new TarjetaCorte("Operaciones", "Ingresos y egresos de caja", Icono.FLUJO, false);
+        TarjetaCorte btn3 = new TarjetaCorte("Análisis", "Día, semana, mes y año", Icono.GRAFICA, false);
+        TarjetaCorte btn4 = new TarjetaCorte("Arqueo de Caja", "Conteo de billetes y monedas", Icono.CAJA, false);
+        TarjetaCorte btn5 = new TarjetaCorte("Corte Cajero", "Cierra el turno y arranca el siguiente desde cero", Icono.RECIBO, true);
 
-        // Aplicar estilos
-        aplicarEstilo(btn1);
-        aplicarEstilo(btn2);
-        aplicarEstilo(btn3);
-        aplicarEstilo(btn4);
-        aplicarEstilo(btn5);
-         aplicarEstilo(btn6);
-
-        // Asignar acciones a los botones
+        // Acciones (sin cambios)
         btn1.addActionListener(e -> {
-            if (OpcVentasDelTurno.instance == null || !OpcVentasDelTurno.instance.isVisible()) {
-                OpcVentasDelTurno.instance = new OpcVentasDelTurno();
-                OpcVentasDelTurno.instance.setVisible(true);
+            if (OpcVentasDelTurnoNA.instance == null || !OpcVentasDelTurnoNA.instance.isVisible()) {
+                OpcVentasDelTurnoNA.instance = new OpcVentasDelTurnoNA();
+                OpcVentasDelTurnoNA.instance.setVisible(true);
             } else {
-                OpcVentasDelTurno.instance.toFront();
+                OpcVentasDelTurnoNA.instance.toFront();
             }
         });
 
@@ -76,11 +63,11 @@ public class menuCorteCaja {
         });
 
         btn3.addActionListener(e -> {
-            if (ReporteGeneral.instance == null || !ReporteGeneral.instance.isVisible()) {
-                ReporteGeneral.instance = new ReporteGeneral();
-                ReporteGeneral.instance.setVisible(true);
+            if (Analisis.instance == null || !Analisis.instance.isVisible()) {
+                Analisis.instance = new Analisis();
+                Analisis.instance.setVisible(true);
             } else {
-                ReporteGeneral.instance.toFront();
+                Analisis.instance.toFront();
             }
         });
 
@@ -93,36 +80,19 @@ public class menuCorteCaja {
             }
         });
 
-  btn5.addActionListener(e -> {
-  CorteCajeroView.getInstance(usuario, Sistema.getInstancia().getLoginView()).setVisible(true); // ✅ BIEN
+        btn5.addActionListener(e -> {
+            CorteCajeroView.getInstance(usuario, Sistema.getInstancia().getLoginView()).setVisible(true);
+        });
 
-});
-  
- btn6.addActionListener(e -> {
-    if (MovimientosCaja.instance == null || !MovimientosCaja.instance.isVisible()) {
-        MovimientosCaja.instance = new MovimientosCaja();
-        new MovimientosCajaController(MovimientosCaja.instance); // << AÑADE ESTA LÍNEA
-        MovimientosCaja.instance.setVisible(true);
-    } else {
-        MovimientosCaja.instance.toFront();
-    }
-});
- 
+        // Fondo, margen y layout del panel + acomodo de tarjetas
+        PanelCorte.aplicarFondo(panel);
+        PanelCorte.agregar(panel, btn1, 0, 0, 1);
+        PanelCorte.agregar(panel, btn2, 0, 1, 1);
+        PanelCorte.agregar(panel, btn3, 0, 2, 1);
+        PanelCorte.agregar(panel, btn4, 1, 0, 1);
+        PanelCorte.agregar(panel, btn5, 1, 1, 2);   // Corte Cajero ocupa dos columnas
 
-        // Layout sugerido
-        panel.setLayout(new GridLayout(0, 2, 10, 10)); // 2 columnas, separación de 10px
-
-        // Agregar botones al panel
-        panel.add(btn1);
-        panel.add(btn2);
-        panel.add(btn3);
-        panel.add(btn4);
-        panel.add(btn5);
-        panel.add(btn6); //Movimientos de caja
-
-        // Refrescar el panel
         panel.revalidate();
         panel.repaint();
     }
-
 }
