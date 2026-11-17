@@ -119,6 +119,7 @@ public final class Sistema extends javax.swing.JFrame {
       private Vista.VerduleriaPanel panelVerduleria;
       private List<Productos> cacheProductosEmpresa = new ArrayList<>();
       private Vista.HistorialVentasPanel panelHistorialVentas;
+      private Vista.PanelClientes panelClientes;
        private HistorialVentasController historialController;
       private javax.swing.JPanel jPanelConfig;
      private RolController rolController = new RolController();
@@ -250,7 +251,18 @@ public Sistema() {
         instancia = this;   // 👈 agrega esta línea — asegura que el singleton SIEMPRE apunte a la instancia real en uso, sin importar si se creó con new Sistema() o con getInstancia()
 
     initComponents(); // inicializa todo
+System.out.println("========== DIAGNÓSTICO ==========");
+System.out.println("Java: " + System.getProperty("java.version"));
+System.out.println("Look and Feel: "
+    + javax.swing.UIManager.getLookAndFeel().getName());
+System.out.println("Clase Look and Feel: "
+    + javax.swing.UIManager.getLookAndFeel().getClass().getName());
 
+System.out.println("Clase cargada desde: "
+    + getClass().getProtectionDomain()
+        .getCodeSource().getLocation());
+
+System.out.println("=================================");
     // -------------------------
     // 🔹 Pestaña: Config Dispositivos
     // -------------------------
@@ -297,7 +309,14 @@ public Sistema() {
     jPanel6.add(panelHistorialVentas, BorderLayout.CENTER);
     jPanel6.revalidate();
     jPanel6.repaint();
-//
+//   llamar a panel clientes
+        panelClientes = new Vista.PanelClientes(
+                () -> usuarioLogueado != null ? usuarioLogueado.getIdEmpresa() : 0);
+        jPanel3.setLayout(new BorderLayout());
+        jPanel3.removeAll();
+        jPanel3.add(panelClientes, BorderLayout.CENTER);
+        jPanel3.revalidate();
+        jPanel3.repaint();
  // llama a panel creditoCliente
  panelCreditoCliente = new Vista.CreditoClientePanel();
 creditoClienteController = new Controlador.CreditoClienteController(panelCreditoCliente);
@@ -671,7 +690,7 @@ refrescarPanelVerduleria();
 cargarPromosVigentes();
 actualizarVentasHoy();
 activarAjusteAutomatico(); 
-activarAjusteAutomatico();
+
 activarAjusteVenta();
     instalarLogFoco();
 } 
@@ -845,7 +864,7 @@ private void activarAjusteAutomatico() {
     });
     ajustar.run();
 }
-  public void ListarCliente(int idEmpresa) {
+ /* public void ListarCliente(int idEmpresa) {
     List<Cliente> ListarCl = client.ListarCliente(idEmpresa); // ahora recibe idEmpresa
     modelo = (DefaultTableModel) TableCliente.getModel();
     modelo.setRowCount(0); // 🔹 limpiar la tabla antes de llenarla
@@ -861,7 +880,7 @@ private void activarAjusteAutomatico() {
         modelo.addRow(ob);
     }
     TableCliente.setModel(modelo);
-}
+}*/
 
 
   public void ListarProveedor(int idEmpresa) {
@@ -2788,20 +2807,13 @@ public void ListarConfig() {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnClientesActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnClientesActionPerformed
-   // Validación de acceso
-    if (usuarioLogueado.getRol().equals("Administrador") 
-        || corteValidado 
-        || rolController.solicitarClaveAdministrador()) {
-        
-        corteValidado = true; // marcar como validado
-        Menu.setSelectedIndex(1); // cambiar a la pestaña Clientes
-        
-        LimpiarTable(); // limpiar tabla
-        ListarCliente(usuarioLogueado.getIdEmpresa()); // 🔹 ahora sí se lista por empresa
-        
-        btnEditarCliente.setEnabled(false);
-        btnEliminarCliente.setEnabled(false);
-        LimpiarCliente(); // limpiar campos del formulario
+   if (usuarioLogueado.getRol().equals("Administrador")
+            || corteValidado
+            || rolController.solicitarClaveAdministrador()) {
+
+        corteValidado = true;
+        Menu.setSelectedIndex(1);
+        panelClientes.abrir();
     }
     }//GEN-LAST:event_btnClientesActionPerformed
 
@@ -3101,87 +3113,19 @@ lg.setIdEmpresa(Sistema.getIdEmpresaActiva());
     }//GEN-LAST:event_TableProveedorMouseClicked
 
     private void btnNuevoClienteActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnNuevoClienteActionPerformed
-        // TODO add your handling code here:
-        LimpiarCliente();
-        btnEditarCliente.setEnabled(false);
-        btnEliminarCliente.setEnabled(false);
-        btnGuardarCliente.setEnabled(true);
+       
     }//GEN-LAST:event_btnNuevoClienteActionPerformed
 
     private void btnEliminarClienteActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarClienteActionPerformed
-    if (!"".equals(txtIdCliente.getText())) {
-        int pregunta = JOptionPane.showConfirmDialog(null, "¿Está seguro de eliminar?");
-        if (pregunta == 0) {
-            int id = Integer.parseInt(txtIdCliente.getText());
-            client.EliminarCliente(id); // elimina el cliente
-            LimpiarTable();             // limpia la tabla
-            LimpiarCliente();           // limpia los campos
-            ListarCliente(usuarioLogueado.getIdEmpresa()); // 🔹 vuelve a listar por empresa
-        }
-    } else {
-        JOptionPane.showMessageDialog(null, "Seleccione un cliente para eliminar");
-    }
+    
     }//GEN-LAST:event_btnEliminarClienteActionPerformed
 
     private void btnEditarClienteActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEditarClienteActionPerformed
-      if ("".equals(txtIdCliente.getText())) {
-        JOptionPane.showMessageDialog(null, "Seleccione una fila");
-    } else {
-        if (!"".equals(txtDniCliente.getText()) 
-            && !"".equals(txtNombreCliente.getText()) 
-            && !"".equals(txtTelefonoCliente.getText())) {
-            
-            // Cargar datos del formulario al objeto Cliente
-            cl.setDni(txtDniCliente.getText());
-            cl.setNombre(txtNombreCliente.getText());
-            cl.setTelefono(txtTelefonoCliente.getText());
-            cl.setDireccion(txtDirecionCliente.getText());
-            cl.setId(Integer.parseInt(txtIdCliente.getText()));
-            cl.setIdEmpresa(usuarioLogueado.getIdEmpresa()); // 🔹 asegurar empresa
-
-            // Guardar en la base de datos
-            if (client.ModificarCliente(cl)) {
-                JOptionPane.showMessageDialog(null, "Cliente modificado correctamente");
-                LimpiarTable();
-                LimpiarCliente();
-                ListarCliente(usuarioLogueado.getIdEmpresa()); // 🔹 recargar lista por empresa
-            } else {
-                JOptionPane.showMessageDialog(null, "Error al modificar cliente");
-            }
-        } else {
-            JOptionPane.showMessageDialog(null, "Los campos no pueden estar vacíos");
-        }
-    }
+   
     }//GEN-LAST:event_btnEditarClienteActionPerformed
 
     private void btnGuardarClienteActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGuardarClienteActionPerformed
-       if (!"".equals(txtDniCliente.getText()) 
-        && !"".equals(txtNombreCliente.getText()) 
-        && !"".equals(txtTelefonoCliente.getText()) 
-        && !"".equals(txtDirecionCliente.getText())) {
-        
-        // Cargar datos al objeto cliente
-        cl.setDni(txtDniCliente.getText());
-        cl.setNombre(txtNombreCliente.getText());
-        cl.setTelefono(txtTelefonoCliente.getText());
-        cl.setDireccion(txtDirecionCliente.getText());
-        cl.setIdEmpresa(usuarioLogueado.getIdEmpresa()); // 🔹 asegurar empresa
-
-        // Registrar cliente
-        if (client.RegistrarCliente(cl)) {
-            JOptionPane.showMessageDialog(null, "Cliente registrado correctamente");
-            LimpiarTable();
-            LimpiarCliente();
-            ListarCliente(usuarioLogueado.getIdEmpresa()); // 🔹 recargar por empresa
-            btnEditarCliente.setEnabled(false);
-            btnEliminarCliente.setEnabled(false);
-            btnGuardarCliente.setEnabled(true);
-        } else {
-            JOptionPane.showMessageDialog(null, "Error al registrar cliente");
-        }
-    } else {
-        JOptionPane.showMessageDialog(null, "Los campos no pueden estar vacíos");
-    }
+      
     }//GEN-LAST:event_btnGuardarClienteActionPerformed
 
     private void txtDniClienteKeyTyped(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_txtDniClienteKeyTyped
@@ -3189,16 +3133,7 @@ lg.setIdEmpresa(Sistema.getIdEmpresaActiva());
     }//GEN-LAST:event_txtDniClienteKeyTyped
 
     private void TableClienteMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_TableClienteMouseClicked
-        // TODO add your handling code here:
-        btnEditarCliente.setEnabled(true);
-        btnEliminarCliente.setEnabled(true);
-        btnGuardarCliente.setEnabled(false);
-        int fila = TableCliente.rowAtPoint(evt.getPoint());
-        txtIdCliente.setText(TableCliente.getValueAt(fila, 0).toString());
-        txtDniCliente.setText(TableCliente.getValueAt(fila, 1).toString());
-        txtNombreCliente.setText(TableCliente.getValueAt(fila, 2).toString());
-        txtTelefonoCliente.setText(TableCliente.getValueAt(fila, 3).toString());
-        txtDirecionCliente.setText(TableCliente.getValueAt(fila, 4).toString());
+    
     }//GEN-LAST:event_TableClienteMouseClicked
 
     private void btnGraficarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGraficarActionPerformed
@@ -3562,9 +3497,6 @@ event.numberKeyPress(evt);
          if (TableEntrada.getRowCount() > 0) {
          
 
-                //RegistrarEntrada();
-                //RegistrarDetalle();
-               // RegistrarDetalleEntrada();
                 ActualizarStockEntrada();
               
               LimpiarTableEntrada();
@@ -4359,13 +4291,7 @@ void Operacion(){
     private javax.swing.JTextField txtTelefonoConfig;
     private javax.swing.JTextField txtTelefonoProveedor;
     // End of variables declaration//GEN-END:variables
-    private void LimpiarCliente() {
-        txtIdCliente.setText("");
-        txtDniCliente.setText("");
-        txtNombreCliente.setText("");
-        txtTelefonoCliente.setText("");
-        txtDirecionCliente.setText("");
-    }
+    
 
     private void LimpiarProveedor() {
         txtIdProveedor.setText("");

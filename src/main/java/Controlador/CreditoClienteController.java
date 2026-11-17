@@ -1,3 +1,4 @@
+
 package Controlador;
 
 import Modelo.Cliente;
@@ -8,13 +9,18 @@ import Modelo.ProductosDao;
 import Modelo.VentaDao;
 import Vista.ConsultaCreditoCliente;
 import Vista.CreditoClientePanel;
+import Vista.DialogoNuevoCliente;
 import Vista.FrmBusqueda2;
 import Vista.Sistema;
 
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableModel;
+
 import java.awt.Dialog;
+import java.awt.Window;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.text.DecimalFormat;
@@ -46,7 +52,6 @@ public class CreditoClienteController {
 
     private int idClienteActual = 0;
 
-
     // ============================================================
     // CONSTRUCTOR
     // ============================================================
@@ -57,7 +62,6 @@ public class CreditoClienteController {
 
         inicializarListeners();
     }
-
 
     // ============================================================
     // LISTENERS
@@ -73,7 +77,6 @@ public class CreditoClienteController {
                 e -> buscarCliente()
         );
 
-
         // --------------------------------------------------------
         // BUSCAR CLIENTE CON BOTÓN ...
         // --------------------------------------------------------
@@ -82,6 +85,13 @@ public class CreditoClienteController {
                 e -> abrirBusquedaClientes()
         );
 
+        // --------------------------------------------------------
+        // NUEVO CLIENTE CON BOTÓN +
+        // --------------------------------------------------------
+
+        panel.getBtnNuevoCliente().addActionListener(
+                e -> abrirDialogoNuevoCliente()
+        );
 
         // --------------------------------------------------------
         // BUSCAR / AGREGAR PRODUCTO POR CÓDIGO
@@ -101,7 +111,6 @@ public class CreditoClienteController {
             }
         });
 
-
         // --------------------------------------------------------
         // BOTÓN BUSCAR PRODUCTO
         // --------------------------------------------------------
@@ -109,7 +118,6 @@ public class CreditoClienteController {
         panel.getBtnBuscarProducto().addActionListener(
                 e -> abrirBusquedaProductos()
         );
-
 
         // --------------------------------------------------------
         // ELIMINAR PRODUCTO
@@ -119,7 +127,6 @@ public class CreditoClienteController {
                 e -> eliminarFilaSeleccionada()
         );
 
-
         // --------------------------------------------------------
         // VER HISTORIAL
         // --------------------------------------------------------
@@ -128,7 +135,6 @@ public class CreditoClienteController {
                 e -> verHistorial()
         );
 
-
         // --------------------------------------------------------
         // ACEPTAR / GENERAR CRÉDITO
         // --------------------------------------------------------
@@ -136,7 +142,6 @@ public class CreditoClienteController {
         panel.getBtnAceptar().addActionListener(
                 e -> generarVentaCredito()
         );
-
 
         // --------------------------------------------------------
         // ACTUALIZAR TOTAL AUTOMÁTICAMENTE
@@ -147,6 +152,59 @@ public class CreditoClienteController {
         );
     }
 
+    // ============================================================
+    // ABRIR DIÁLOGO NUEVO CLIENTE
+    // ============================================================
+
+    private void abrirDialogoNuevoCliente() {
+
+        int idEmpresa = Sistema.getIdEmpresaActiva();
+
+        if (idEmpresa <= 0) {
+
+            JOptionPane.showMessageDialog(
+                    panel,
+                    "No se pudo identificar la empresa activa.",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+
+            return;
+        }
+
+        Window owner =
+                SwingUtilities.getWindowAncestor(panel);
+
+        DialogoNuevoCliente dialogo =
+                new DialogoNuevoCliente(
+                        owner,
+                        idEmpresa
+                );
+
+        dialogo.setVisible(true);
+
+        // Recuperar el cliente registrado.
+        Cliente cliente =
+                dialogo.getClienteRegistrado();
+
+        if (cliente != null && cliente.getId() > 0) {
+
+            // Guardar el ID interno del cliente.
+            idClienteActual = cliente.getId();
+
+            // Mostrar DNI y nombre en el panel.
+            panel.getTxtRuc().setText(
+                    cliente.getDni()
+            );
+
+            panel.getTxtNombreCliente().setText(
+                    cliente.getNombre()
+            );
+
+            // Enfocar el código del producto.
+            panel.getTxtCodigo().requestFocusInWindow();
+        }
+    }
 
     // ============================================================
     // BUSCAR PRODUCTOS
@@ -163,10 +221,7 @@ public class CreditoClienteController {
         System.out.println("Origen: credito");
         System.out.println("======================================");
 
-
         /*
-         * MUY IMPORTANTE:
-         *
          * Mandamos explícitamente "credito".
          *
          * FrmBusqueda2 posteriormente manda este origen
@@ -184,7 +239,6 @@ public class CreditoClienteController {
         frm.setVisible(true);
     }
 
-
     // ============================================================
     // BUSCAR CLIENTE POR ID / DNI
     // ============================================================
@@ -196,11 +250,9 @@ public class CreditoClienteController {
                         .getText()
                         .trim();
 
-
         if (texto.isEmpty()) {
             return;
         }
-
 
         int dni;
 
@@ -218,10 +270,8 @@ public class CreditoClienteController {
             return;
         }
 
-
         int idEmpresa =
                 Sistema.getIdEmpresaActiva();
-
 
         Cliente cl =
                 clienteDao.BuscarCliente(
@@ -229,18 +279,15 @@ public class CreditoClienteController {
                         idEmpresa
                 );
 
-
-        if (cl != null &&
-                cl.getNombre() != null &&
-                !cl.getNombre().trim().isEmpty()) {
+        if (cl != null
+                && cl.getNombre() != null
+                && !cl.getNombre().trim().isEmpty()) {
 
             panel.getTxtNombreCliente()
                     .setText(cl.getNombre());
 
-
-            // Guardamos el ID interno del cliente
+            // Guardamos el ID interno del cliente.
             idClienteActual = cl.getId();
-
 
             panel.getTxtCodigo()
                     .requestFocus();
@@ -256,430 +303,388 @@ public class CreditoClienteController {
         }
     }
 
-
     // ============================================================
     // ABRIR BÚSQUEDA DE CLIENTES
     // ============================================================
 
- private void abrirBusquedaClientes() {
+    private void abrirBusquedaClientes() {
 
-    int idEmpresa = Sistema.getIdEmpresaActiva();
+        int idEmpresa =
+                Sistema.getIdEmpresaActiva();
 
-    JDialog dialog = new JDialog(
-            SwingUtilities.getWindowAncestor(panel),
-            "Buscar Cliente",
-            Dialog.ModalityType.APPLICATION_MODAL
-    );
+        JDialog dialog = new JDialog(
+                SwingUtilities.getWindowAncestor(panel),
+                "Buscar Cliente",
+                Dialog.ModalityType.APPLICATION_MODAL
+        );
 
-    dialog.setSize(700, 500);
-    dialog.setLocationRelativeTo(panel);
-    dialog.setLayout(null);
+        dialog.setSize(700, 500);
+        dialog.setLocationRelativeTo(panel);
+        dialog.setLayout(null);
 
-    // ========================================================
-    // LABEL BUSCAR
-    // ========================================================
+        // ========================================================
+        // LABEL BUSCAR
+        // ========================================================
 
-    JLabel lblBuscar = new JLabel("Buscar:");
-    lblBuscar.setFont(
-            new java.awt.Font(
-                    "Tahoma",
-                    java.awt.Font.BOLD,
-                    14
-            )
-    );
-    lblBuscar.setBounds(20, 20, 60, 30);
-    dialog.add(lblBuscar);
+        JLabel lblBuscar = new JLabel("Buscar:");
 
+        lblBuscar.setFont(
+                new java.awt.Font(
+                        "Tahoma",
+                        java.awt.Font.BOLD,
+                        14
+                )
+        );
 
-    // ========================================================
-    // CAMPO BUSCAR
-    // ========================================================
+        lblBuscar.setBounds(20, 20, 60, 30);
 
-    JTextField txtBuscar = new JTextField();
+        dialog.add(lblBuscar);
 
-    txtBuscar.setFont(
-            new java.awt.Font(
-                    "Tahoma",
-                    java.awt.Font.PLAIN,
-                    16
-            )
-    );
+        // ========================================================
+        // CAMPO BUSCAR
+        // ========================================================
 
-    txtBuscar.setBounds(
-            83,
-            20,
-            400,
-            30
-    );
+        JTextField txtBuscar = new JTextField();
 
-    dialog.add(txtBuscar);
+        txtBuscar.setFont(
+                new java.awt.Font(
+                        "Tahoma",
+                        java.awt.Font.PLAIN,
+                        16
+                )
+        );
 
+        txtBuscar.setBounds(
+                83,
+                20,
+                400,
+                30
+        );
 
-    // ========================================================
-    // BOTÓN BUSCAR
-    // ========================================================
+        dialog.add(txtBuscar);
 
-    JButton btnBuscar = new JButton("Buscar");
+        // ========================================================
+        // BOTÓN BUSCAR
+        // ========================================================
 
-    btnBuscar.setBounds(
-            493,
-            20,
-            100,
-            30
-    );
+        JButton btnBuscar = new JButton("Buscar");
 
-    dialog.add(btnBuscar);
+        btnBuscar.setBounds(
+                493,
+                20,
+                100,
+                30
+        );
 
+        dialog.add(btnBuscar);
 
-    // ========================================================
-    // TABLA
-    //
-    // NOTA: el modelo SIEMPRE conserva la columna "ID" en el
-    // índice 0, aunque no se muestre en pantalla. Esto es
-    // necesario porque seleccionarCliente() sigue leyendo el
-    // ID desde el modelo (no desde la vista de la tabla).
-    // ========================================================
+        // ========================================================
+        // TABLA
+        // ========================================================
 
-    DefaultTableModel modelo =
-            new DefaultTableModel(
-                    new Object[][]{},
-                    new String[]{
-                            "ID",
-                            "DNI",
-                            "Nombre",
-                            "Teléfono"
-                    }
-            ) {
-
-                @Override
-                public boolean isCellEditable(
-                        int row,
-                        int column
-                ) {
-                    return false;
-                }
-            };
-
-
-    JTable tabla = new JTable(modelo);
-
-    tabla.setRowHeight(25);
-
-    tabla.setFont(
-            new java.awt.Font(
-                    "Tahoma",
-                    java.awt.Font.PLAIN,
-                    14
-            )
-    );
-
-    tabla.getTableHeader()
-            .setReorderingAllowed(false);
-
-    tabla.setSelectionMode(
-            ListSelectionModel.SINGLE_SELECTION
-    );
-
-
-    // ========================================================
-    // OCULTAR COLUMNA ID
-    //
-    // Se remueve solo de la vista (columnModel), el modelo
-    // (DefaultTableModel) sigue teniendo la columna ID en el
-    // índice 0 internamente.
-    // ========================================================
-
-    tabla.getColumnModel()
-            .removeColumn(
-                    tabla.getColumnModel().getColumn(0)
-            );
-
-
-    // ========================================================
-    // ENTER EN LA FILA -> ACEPTAR
-    // ========================================================
-
-    tabla.addKeyListener(
-            new java.awt.event.KeyAdapter() {
-
-                @Override
-                public void keyPressed(
-                        java.awt.event.KeyEvent e
-                ) {
-
-                    if (e.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER
-                            && tabla.getSelectedRow() != -1) {
-
-                        e.consume();
-
-                        seleccionarCliente(
-                                tabla,
-                                dialog
-                        );
-                    }
-                }
-            }
-    );
-
-
-    // ========================================================
-    // FLECHA ABAJO DESDE EL BUSCADOR -> BAJA A LA TABLA
-    // ========================================================
-
-    txtBuscar.addKeyListener(
-            new java.awt.event.KeyAdapter() {
-
-                @Override
-                public void keyPressed(
-                        java.awt.event.KeyEvent e
-                ) {
-
-                    if (e.getKeyCode() == java.awt.event.KeyEvent.VK_DOWN
-                            && tabla.getRowCount() > 0) {
-
-                        e.consume();
-
-                        tabla.requestFocusInWindow();
-
-                        int fila =
-                                tabla.getSelectedRow();
-
-                        if (fila == -1) {
-                            fila = 0;
+        DefaultTableModel modelo =
+                new DefaultTableModel(
+                        new Object[][]{},
+                        new String[]{
+                                "ID",
+                                "DNI",
+                                "Nombre",
+                                "Teléfono"
                         }
+                ) {
 
-                        tabla.setRowSelectionInterval(
-                                fila,
-                                fila
-                        );
-
-                        tabla.scrollRectToVisible(
-                                tabla.getCellRect(
-                                        fila,
-                                        0,
-                                        true
-                                )
-                        );
+                    @Override
+                    public boolean isCellEditable(
+                            int row,
+                            int column
+                    ) {
+                        return false;
                     }
-                }
-            }
-    );
+                };
 
+        JTable tabla = new JTable(modelo);
 
-    // ========================================================
-    // SCROLL
-    // ========================================================
+        tabla.setRowHeight(25);
 
-    JScrollPane scroll =
-            new JScrollPane(tabla);
+        tabla.setFont(
+                new java.awt.Font(
+                        "Tahoma",
+                        java.awt.Font.PLAIN,
+                        14
+                )
+        );
 
-    scroll.setBounds(
-            20,
-            70,
-            640,
-            320
-    );
+        tabla.getTableHeader()
+                .setReorderingAllowed(false);
 
-    dialog.add(scroll);
+        tabla.setSelectionMode(
+                ListSelectionModel.SINGLE_SELECTION
+        );
 
+        // ========================================================
+        // OCULTAR COLUMNA ID
+        // ========================================================
 
-    // ========================================================
-    // BOTÓN ACEPTAR
-    // ========================================================
-
-    JButton btnAceptar =
-            new JButton("ACEPTAR");
-
-    btnAceptar.setBounds(
-            400,
-            405,
-            120,
-            35
-    );
-
-    dialog.add(btnAceptar);
-
-
-    // ========================================================
-    // BOTÓN CANCELAR
-    // ========================================================
-
-    JButton btnCancelar =
-            new JButton("CANCELAR");
-
-    btnCancelar.setBounds(
-            530,
-            405,
-            120,
-            35
-    );
-
-    dialog.add(btnCancelar);
-
-
-    // ========================================================
-    // MÉTODO PARA CARGAR CLIENTES
-    // ========================================================
-
-    Runnable cargarClientes = () -> {
-
-        String texto =
-                txtBuscar.getText()
-                        .trim();
-
-
-        modelo.setRowCount(0);
-
-
-        List<Cliente> clientes =
-                clienteDao.BuscarClientes(
-                        texto,
-                        idEmpresa
+        tabla.getColumnModel()
+                .removeColumn(
+                        tabla.getColumnModel().getColumn(0)
                 );
 
+        // ========================================================
+        // ENTER EN LA FILA -> ACEPTAR
+        // ========================================================
 
-        for (Cliente cl : clientes) {
+        tabla.addKeyListener(
+                new KeyAdapter() {
 
-            modelo.addRow(
-                    new Object[]{
-                            cl.getId(),
-                            cl.getDni(),
-                            cl.getNombre(),
-                            cl.getTelefono()
-                    }
-            );
-        }
-    };
+                    @Override
+                    public void keyPressed(KeyEvent e) {
 
+                        if (e.getKeyCode() == KeyEvent.VK_ENTER
+                                && tabla.getSelectedRow() != -1) {
 
-    // ========================================================
-    // BOTÓN BUSCAR
-    // ========================================================
+                            e.consume();
 
-    btnBuscar.addActionListener(
-            e -> cargarClientes.run()
-    );
-
-
-    // ========================================================
-    // BUSCAR CON ENTER
-    // ========================================================
-
-    txtBuscar.addActionListener(
-            e -> cargarClientes.run()
-    );
-
-
-    // ========================================================
-    // FILTRAR AUTOMÁTICAMENTE AL ESCRIBIR
-    // ========================================================
-
-    txtBuscar.getDocument()
-            .addDocumentListener(
-                    new javax.swing.event.DocumentListener() {
-
-                        @Override
-                        public void insertUpdate(
-                                javax.swing.event.DocumentEvent e
-                        ) {
-                            cargarClientes.run();
+                            seleccionarCliente(
+                                    tabla,
+                                    dialog
+                            );
                         }
-
-
-                        @Override
-                        public void removeUpdate(
-                                javax.swing.event.DocumentEvent e
-                        ) {
-                            cargarClientes.run();
-                        }
-
-
-                        @Override
-                        public void changedUpdate(
-                                javax.swing.event.DocumentEvent e
-                        ) {
-                            cargarClientes.run();
-                        }
-                    }
-            );
-
-
-    // ========================================================
-    // DOBLE CLICK PARA SELECCIONAR
-    // ========================================================
-
-    tabla.addMouseListener(
-            new java.awt.event.MouseAdapter() {
-
-                @Override
-                public void mouseClicked(
-                        java.awt.event.MouseEvent e
-                ) {
-
-                    if (e.getClickCount() == 2 &&
-                            tabla.getSelectedRow() != -1) {
-
-                        seleccionarCliente(
-                                tabla,
-                                dialog
-                        );
                     }
                 }
-            }
-    );
-
-
-    // ========================================================
-    // ACEPTAR
-    // ========================================================
-
-    btnAceptar.addActionListener(e -> {
-
-        seleccionarCliente(
-                tabla,
-                dialog
         );
-    });
 
+        // ========================================================
+        // FLECHA ABAJO DESDE EL BUSCADOR -> BAJA A LA TABLA
+        // ========================================================
 
-    // ========================================================
-    // CANCELAR
-    // ========================================================
+        txtBuscar.addKeyListener(
+                new KeyAdapter() {
 
-    btnCancelar.addActionListener(
-            e -> dialog.dispose()
-    );
+                    @Override
+                    public void keyPressed(KeyEvent e) {
 
+                        if (e.getKeyCode() == KeyEvent.VK_DOWN
+                                && tabla.getRowCount() > 0) {
 
-    // ========================================================
-    // CARGAR TODOS LOS CLIENTES AL ABRIR
-    // ========================================================
+                            e.consume();
 
-    cargarClientes.run();
+                            tabla.requestFocusInWindow();
 
+                            int fila =
+                                    tabla.getSelectedRow();
 
-    // ========================================================
-    // SELECCIONAR AUTOMÁTICAMENTE EL PRIMER CLIENTE
-    // ========================================================
+                            if (fila == -1) {
+                                fila = 0;
+                            }
 
-    if (tabla.getRowCount() > 0) {
-        tabla.setRowSelectionInterval(0, 0);
+                            tabla.setRowSelectionInterval(
+                                    fila,
+                                    fila
+                            );
+
+                            tabla.scrollRectToVisible(
+                                    tabla.getCellRect(
+                                            fila,
+                                            0,
+                                            true
+                                    )
+                            );
+                        }
+                    }
+                }
+        );
+
+        // ========================================================
+        // SCROLL
+        // ========================================================
+
+        JScrollPane scroll =
+                new JScrollPane(tabla);
+
+        scroll.setBounds(
+                20,
+                70,
+                640,
+                320
+        );
+
+        dialog.add(scroll);
+
+        // ========================================================
+        // BOTÓN ACEPTAR
+        // ========================================================
+
+        JButton btnAceptar =
+                new JButton("ACEPTAR");
+
+        btnAceptar.setBounds(
+                400,
+                405,
+                120,
+                35
+        );
+
+        dialog.add(btnAceptar);
+
+        // ========================================================
+        // BOTÓN CANCELAR
+        // ========================================================
+
+        JButton btnCancelar =
+                new JButton("CANCELAR");
+
+        btnCancelar.setBounds(
+                530,
+                405,
+                120,
+                35
+        );
+
+        dialog.add(btnCancelar);
+
+        // ========================================================
+        // MÉTODO PARA CARGAR CLIENTES
+        // ========================================================
+
+        Runnable cargarClientes = () -> {
+
+            String texto =
+                    txtBuscar.getText().trim();
+
+            modelo.setRowCount(0);
+
+            List<Cliente> clientes =
+                    clienteDao.BuscarClientes(
+                            texto,
+                            idEmpresa
+                    );
+
+            for (Cliente cl : clientes) {
+
+                modelo.addRow(
+                        new Object[]{
+                                cl.getId(),
+                                cl.getDni(),
+                                cl.getNombre(),
+                                cl.getTelefono()
+                        }
+                );
+            }
+        };
+
+        // ========================================================
+        // BOTÓN BUSCAR
+        // ========================================================
+
+        btnBuscar.addActionListener(
+                e -> cargarClientes.run()
+        );
+
+        // ========================================================
+        // BUSCAR CON ENTER
+        // ========================================================
+
+        txtBuscar.addActionListener(
+                e -> cargarClientes.run()
+        );
+
+        // ========================================================
+        // FILTRAR AUTOMÁTICAMENTE AL ESCRIBIR
+        // ========================================================
+
+        txtBuscar.getDocument()
+                .addDocumentListener(
+                        new DocumentListener() {
+
+                            @Override
+                            public void insertUpdate(DocumentEvent e) {
+                                cargarClientes.run();
+                            }
+
+                            @Override
+                            public void removeUpdate(DocumentEvent e) {
+                                cargarClientes.run();
+                            }
+
+                            @Override
+                            public void changedUpdate(DocumentEvent e) {
+                                cargarClientes.run();
+                            }
+                        }
+                );
+
+        // ========================================================
+        // DOBLE CLICK PARA SELECCIONAR
+        // ========================================================
+
+        tabla.addMouseListener(
+                new java.awt.event.MouseAdapter() {
+
+                    @Override
+                    public void mouseClicked(
+                            java.awt.event.MouseEvent e
+                    ) {
+
+                        if (e.getClickCount() == 2
+                                && tabla.getSelectedRow() != -1) {
+
+                            seleccionarCliente(
+                                    tabla,
+                                    dialog
+                            );
+                        }
+                    }
+                }
+        );
+
+        // ========================================================
+        // ACEPTAR
+        // ========================================================
+
+        btnAceptar.addActionListener(e -> {
+
+            seleccionarCliente(
+                    tabla,
+                    dialog
+            );
+        });
+
+        // ========================================================
+        // CANCELAR
+        // ========================================================
+
+        btnCancelar.addActionListener(
+                e -> dialog.dispose()
+        );
+
+        // ========================================================
+        // CARGAR TODOS LOS CLIENTES AL ABRIR
+        // ========================================================
+
+        cargarClientes.run();
+
+        // ========================================================
+        // SELECCIONAR AUTOMÁTICAMENTE EL PRIMER CLIENTE
+        // ========================================================
+
+        if (tabla.getRowCount() > 0) {
+
+            tabla.setRowSelectionInterval(0, 0);
+        }
+
+        // ========================================================
+        // ENFOCAR BUSCADOR
+        // ========================================================
+
+        txtBuscar.requestFocus();
+
+        // ========================================================
+        // MOSTRAR
+        // ========================================================
+
+        dialog.setVisible(true);
     }
-
-
-    // ========================================================
-    // ENFOCAR BUSCADOR
-    // ========================================================
-
-    txtBuscar.requestFocus();
-
-
-    // ========================================================
-    // MOSTRAR
-    // ========================================================
-
-    dialog.setVisible(true);
-}
 
     // ============================================================
     // SELECCIONAR CLIENTE
@@ -693,11 +698,6 @@ public class CreditoClienteController {
         int fila =
                 tabla.getSelectedRow();
 
-
-        // --------------------------------------------------------
-        // VALIDAR SELECCIÓN
-        // --------------------------------------------------------
-
         if (fila == -1) {
 
             JOptionPane.showMessageDialog(
@@ -708,29 +708,15 @@ public class CreditoClienteController {
             return;
         }
 
-
-        // --------------------------------------------------------
-        // LEER DESDE EL MODELO (no desde la vista)
-        //
-        // IMPORTANTE:
-        // Como la columna "ID" fue removida de la vista
-        // (columnModel), tabla.getValueAt() ya NO corresponde
-        // a los mismos índices del modelo. Por eso leemos
-        // directamente del TableModel, donde ID sigue siendo
-        // la columna 0.
-        //
-        // Como no hay row sorter, el índice de fila de la vista
-        // coincide con el índice de fila del modelo.
-        // --------------------------------------------------------
+        /*
+         * Como la columna ID fue removida de la vista,
+         * leemos directamente desde el modelo.
+         */
 
         TableModel modelo =
                 tabla.getModel();
 
-
-        // --------------------------------------------------------
-        // OBTENER ID INTERNO
-        // --------------------------------------------------------
-
+        // Obtener ID interno.
         int id =
                 Integer.parseInt(
                         modelo.getValueAt(
@@ -739,70 +725,38 @@ public class CreditoClienteController {
                         ).toString()
                 );
 
-
-        // --------------------------------------------------------
-        // OBTENER DNI
-        // --------------------------------------------------------
-
+        // Obtener DNI.
         String dni =
                 modelo.getValueAt(
                         fila,
                         1
                 ).toString();
 
-
-        // --------------------------------------------------------
-        // OBTENER NOMBRE
-        // --------------------------------------------------------
-
+        // Obtener nombre.
         String nombre =
                 modelo.getValueAt(
                         fila,
                         2
                 ).toString();
 
-
-        // --------------------------------------------------------
-        // GUARDAR ID INTERNO
-        // --------------------------------------------------------
-
+        // Guardar ID interno.
         idClienteActual = id;
 
-
-        // --------------------------------------------------------
-        // ACTUALIZAR CAMPO ID/DNI
-        //
-        // IMPORTANTE:
-        // Tu sistema actual utiliza este campo como DNI.
-        // --------------------------------------------------------
-
+        // Actualizar campo DNI.
         panel.getTxtRuc()
                 .setText(dni);
 
-
-        // --------------------------------------------------------
-        // ACTUALIZAR NOMBRE
-        // --------------------------------------------------------
-
+        // Actualizar nombre.
         panel.getTxtNombreCliente()
                 .setText(nombre);
 
-
-        // --------------------------------------------------------
-        // CERRAR VENTANA
-        // --------------------------------------------------------
-
+        // Cerrar ventana.
         dialog.dispose();
 
-
-        // --------------------------------------------------------
-        // IR A PRODUCTO
-        // --------------------------------------------------------
-
+        // Ir al campo de producto.
         panel.getTxtCodigo()
                 .requestFocus();
     }
-
 
     // ============================================================
     // AGREGAR PRODUCTO ESCRIBIENDO CÓDIGO
@@ -814,7 +768,6 @@ public class CreditoClienteController {
                 panel.getTxtCodigo()
                         .getText()
                         .trim();
-
 
         if (texto.isEmpty()) {
 
@@ -829,10 +782,8 @@ public class CreditoClienteController {
             return;
         }
 
-
         int idEmpresa =
                 Sistema.getIdEmpresaActiva();
-
 
         Productos pro =
                 productoDao.BuscarPro(
@@ -840,20 +791,16 @@ public class CreditoClienteController {
                         idEmpresa
                 );
 
-
         // --------------------------------------------------------
-        // SI NO ENCONTRÓ POR CÓDIGO,
-        // INTENTAR POR ID
+        // SI NO ENCONTRÓ POR CÓDIGO, INTENTAR POR ID
         // --------------------------------------------------------
 
-        if (pro == null ||
-                pro.getNombre() == null) {
+        if (pro == null || pro.getNombre() == null) {
 
             try {
 
                 int id =
                         Integer.parseInt(texto);
-
 
                 pro =
                         productoDao.BuscarId(
@@ -867,13 +814,11 @@ public class CreditoClienteController {
             }
         }
 
-
         // --------------------------------------------------------
         // PRODUCTO NO ENCONTRADO
         // --------------------------------------------------------
 
-        if (pro == null ||
-                pro.getNombre() == null) {
+        if (pro == null || pro.getNombre() == null) {
 
             JOptionPane.showMessageDialog(
                     panel,
@@ -885,7 +830,6 @@ public class CreditoClienteController {
             return;
         }
 
-
         // --------------------------------------------------------
         // CANTIDAD POR DEFECTO
         // --------------------------------------------------------
@@ -894,7 +838,6 @@ public class CreditoClienteController {
 
         double stock =
                 pro.getStock();
-
 
         if (stock < cantidad) {
 
@@ -908,15 +851,12 @@ public class CreditoClienteController {
             return;
         }
 
-
         // --------------------------------------------------------
         // CALCULAR TOTAL
         // --------------------------------------------------------
 
         double total =
-                cantidad *
-                        pro.getPrecio();
-
+                cantidad * pro.getPrecio();
 
         // --------------------------------------------------------
         // AGREGAR A TABLA
@@ -930,10 +870,8 @@ public class CreditoClienteController {
                 total
         );
 
-
         limpiarCodigo();
     }
-
 
     // ============================================================
     // AGREGAR FILA A TABLA
@@ -961,7 +899,6 @@ public class CreditoClienteController {
         System.out.println("Total: " + total);
         System.out.println("======================================");
 
-
         Object[] fila =
                 new Object[]{
                         idProducto,
@@ -971,13 +908,10 @@ public class CreditoClienteController {
                         total
                 };
 
-
         panel.getModeloProductos()
                 .addRow(fila);
 
-
         recalcularTotal();
-
 
         panel.getTablaProductos()
                 .revalidate();
@@ -985,7 +919,6 @@ public class CreditoClienteController {
         panel.getTablaProductos()
                 .repaint();
     }
-
 
     // ============================================================
     // AGREGAR FILAS DESDE NUEVA VENTA
@@ -1003,15 +936,11 @@ public class CreditoClienteController {
             return;
         }
 
-
         for (Object[] fila : filasVenta) {
 
-            if (fila == null ||
-                    fila.length < 5) {
-
+            if (fila == null || fila.length < 5) {
                 continue;
             }
-
 
             try {
 
@@ -1020,28 +949,23 @@ public class CreditoClienteController {
                                 fila[0].toString()
                         );
 
-
                 String nombre =
                         fila[1].toString();
-
 
                 double cantidad =
                         Double.parseDouble(
                                 fila[2].toString()
                         );
 
-
                 double precio =
                         Double.parseDouble(
                                 fila[3].toString()
                         );
 
-
                 double total =
                         Double.parseDouble(
                                 fila[4].toString()
                         );
-
 
                 agregarFila(
                         idProducto,
@@ -1050,7 +974,6 @@ public class CreditoClienteController {
                         precio,
                         total
                 );
-
 
             } catch (Exception ex) {
 
@@ -1062,7 +985,6 @@ public class CreditoClienteController {
         }
     }
 
-
     // ============================================================
     // ELIMINAR PRODUCTO
     // ============================================================
@@ -1072,7 +994,6 @@ public class CreditoClienteController {
         int fila =
                 panel.getTablaProductos()
                         .getSelectedRow();
-
 
         if (fila == -1) {
 
@@ -1084,18 +1005,14 @@ public class CreditoClienteController {
             return;
         }
 
-
         panel.getModeloProductos()
                 .removeRow(fila);
 
-
         recalcularTotal();
-
 
         panel.getTxtCodigo()
                 .requestFocus();
     }
-
 
     // ============================================================
     // CALCULAR TOTAL
@@ -1106,22 +1023,18 @@ public class CreditoClienteController {
         DefaultTableModel modelo =
                 panel.getModeloProductos();
 
-
         double total = 0.0;
 
-
         for (int i = 0;
-             i < modelo.getRowCount();
-             i++) {
+                i < modelo.getRowCount();
+                i++) {
 
             Object valor =
                     modelo.getValueAt(i, 4);
 
-
             if (valor == null) {
                 continue;
             }
-
 
             try {
 
@@ -1141,7 +1054,6 @@ public class CreditoClienteController {
             }
         }
 
-
         panel.getLblTotalValor()
                 .setText(
                         String.format(
@@ -1150,7 +1062,6 @@ public class CreditoClienteController {
                         )
                 );
     }
-
 
     // ============================================================
     // VER HISTORIAL
@@ -1163,15 +1074,12 @@ public class CreditoClienteController {
                         .getText()
                         .trim();
 
-
         String nombre =
                 panel.getTxtNombreCliente()
                         .getText()
                         .trim();
 
-
-        if (rucTexto.isEmpty() ||
-                nombre.isEmpty()) {
+        if (rucTexto.isEmpty() || nombre.isEmpty()) {
 
             JOptionPane.showMessageDialog(
                     panel,
@@ -1184,15 +1092,12 @@ public class CreditoClienteController {
             return;
         }
 
-
         int ruc;
 
         try {
 
             ruc =
-                    Integer.parseInt(
-                            rucTexto
-                    );
+                    Integer.parseInt(rucTexto);
 
         } catch (NumberFormatException ex) {
 
@@ -1204,12 +1109,10 @@ public class CreditoClienteController {
             return;
         }
 
-
         ConsultaCreditoCliente
                 .setIdEmpresaActiva(
                         Sistema.getIdEmpresaActiva()
                 );
-
 
         ConsultaCreditoCliente consulta =
                 new ConsultaCreditoCliente(
@@ -1219,44 +1122,47 @@ public class CreditoClienteController {
                         0
                 );
 
-        consulta.setOnCerrarCallback(this::limpiarCliente);   // 👈 AGREGAR ESTA LÍNEA
+        consulta.setOnCerrarCallback(
+                this::limpiarCliente
+        );
 
         consulta.setVisible(true);
     }
-    
+
     // ============================================================
-// VER HISTORIAL DE UN CLIENTE (usado por los banners de fiado)
-// ============================================================
+    // VER HISTORIAL DE UN CLIENTE
+    // ============================================================
 
-/**
- * Abre la misma ventana "Consulta Crédito Cliente" que el botón
- * Ver Historial, pero con el cliente que viene del banner.
- *
- * No toca los campos del panel (txtRuc / txtNombreCliente) ni
- * limpia nada al cerrar, para no pisar una captura que el usuario
- * tenga a medias en la pestaña de Crédito Cliente.
- */
-public void verHistorialDe(int dni, String nombre) {
+    /**
+     * Abre la misma ventana "Consulta Crédito Cliente" que el botón
+     * Ver Historial, pero con el cliente que viene del banner.
+     *
+     * No modifica los campos del panel ni limpia nada al cerrar.
+     */
+    public void verHistorialDe(
+            int dni,
+            String nombre
+    ) {
 
-    if (nombre == null || nombre.trim().isEmpty()) {
-        return;
+        if (nombre == null || nombre.trim().isEmpty()) {
+            return;
+        }
+
+        ConsultaCreditoCliente
+                .setIdEmpresaActiva(
+                        Sistema.getIdEmpresaActiva()
+                );
+
+        ConsultaCreditoCliente consulta =
+                new ConsultaCreditoCliente(
+                        dni,
+                        nombre.trim(),
+                        0,
+                        0
+                );
+
+        consulta.setVisible(true);
     }
-
-    ConsultaCreditoCliente
-            .setIdEmpresaActiva(
-                    Sistema.getIdEmpresaActiva()
-            );
-
-    ConsultaCreditoCliente consulta =
-            new ConsultaCreditoCliente(
-                    dni,
-                    nombre.trim(),
-                    0,
-                    0
-            );
-
-    consulta.setVisible(true);
-}
 
     // ============================================================
     // GENERAR VENTA A CRÉDITO
@@ -1266,7 +1172,6 @@ public void verHistorialDe(int dni, String nombre) {
 
         DefaultTableModel modelo =
                 panel.getModeloProductos();
-
 
         // --------------------------------------------------------
         // VALIDAR PRODUCTOS
@@ -1285,7 +1190,6 @@ public void verHistorialDe(int dni, String nombre) {
             return;
         }
 
-
         // --------------------------------------------------------
         // VALIDAR CLIENTE
         // --------------------------------------------------------
@@ -1295,12 +1199,10 @@ public void verHistorialDe(int dni, String nombre) {
                         .getText()
                         .trim();
 
-
         String rucTexto =
                 panel.getTxtRuc()
                         .getText()
                         .trim();
-
 
         if (nombreCliente.isEmpty()) {
 
@@ -1315,15 +1217,12 @@ public void verHistorialDe(int dni, String nombre) {
             return;
         }
 
-
         int dni;
 
         try {
 
             dni =
-                    Integer.parseInt(
-                            rucTexto
-                    );
+                    Integer.parseInt(rucTexto);
 
         } catch (NumberFormatException ex) {
 
@@ -1335,6 +1234,22 @@ public void verHistorialDe(int dni, String nombre) {
             return;
         }
 
+        // --------------------------------------------------------
+        // VALIDAR ID INTERNO DEL CLIENTE
+        // --------------------------------------------------------
+
+        if (idClienteActual <= 0) {
+
+            JOptionPane.showMessageDialog(
+                    panel,
+                    "Debes seleccionar o buscar un cliente válido."
+            );
+
+            panel.getTxtRuc()
+                    .requestFocus();
+
+            return;
+        }
 
         // --------------------------------------------------------
         // GENERAR ID DE VENTA
@@ -1343,20 +1258,18 @@ public void verHistorialDe(int dni, String nombre) {
         int idVenta =
                 ventaDao.IdVenta();
 
-
         String fechaActual =
                 new SimpleDateFormat(
                         "dd/MM/yyyy"
                 ).format(new Date());
-
 
         // --------------------------------------------------------
         // REGISTRAR PRODUCTOS
         // --------------------------------------------------------
 
         for (int i = 0;
-             i < modelo.getRowCount();
-             i++) {
+                i < modelo.getRowCount();
+                i++) {
 
             try {
 
@@ -1368,13 +1281,11 @@ public void verHistorialDe(int dni, String nombre) {
                                 ).toString()
                         );
 
-
                 String nombreProducto =
                         modelo.getValueAt(
                                 i,
                                 1
                         ).toString();
-
 
                 double cantidad =
                         Double.parseDouble(
@@ -1384,7 +1295,6 @@ public void verHistorialDe(int dni, String nombre) {
                                 ).toString()
                         );
 
-
                 double precio =
                         Double.parseDouble(
                                 modelo.getValueAt(
@@ -1392,7 +1302,6 @@ public void verHistorialDe(int dni, String nombre) {
                                         3
                                 ).toString()
                         );
-
 
                 double total =
                         Double.parseDouble(
@@ -1402,14 +1311,12 @@ public void verHistorialDe(int dni, String nombre) {
                                 ).toString()
                         );
 
-
                 // ------------------------------------------------
                 // CREAR DETALLE
                 // ------------------------------------------------
 
                 Detalle detalle =
                         new Detalle();
-
 
                 detalle.setId_pro(
                         idProducto
@@ -1447,7 +1354,6 @@ public void verHistorialDe(int dni, String nombre) {
                         fechaActual
                 );
 
-
                 // ------------------------------------------------
                 // REGISTRAR CRÉDITO
                 // ------------------------------------------------
@@ -1455,7 +1361,6 @@ public void verHistorialDe(int dni, String nombre) {
                 ventaDao.RegistrarDetalleCreditocliente(
                         detalle
                 );
-
 
                 // ------------------------------------------------
                 // ACTUALIZAR STOCK
@@ -1465,7 +1370,6 @@ public void verHistorialDe(int dni, String nombre) {
                         idProducto,
                         cantidad
                 );
-
 
             } catch (Exception ex) {
 
@@ -1481,20 +1385,17 @@ public void verHistorialDe(int dni, String nombre) {
             }
         }
 
-
         // --------------------------------------------------------
         // LIMPIAR
         // --------------------------------------------------------
 
         limpiarTodo();
 
-
         JOptionPane.showMessageDialog(
                 panel,
                 "Registro exitoso"
         );
     }
-
 
     // ============================================================
     // ACTUALIZAR STOCK
@@ -1508,13 +1409,11 @@ public void verHistorialDe(int dni, String nombre) {
         int idEmpresa =
                 Sistema.getIdEmpresaActiva();
 
-
         Productos pro =
                 productoDao.BuscarId(
                         idProducto,
                         idEmpresa
                 );
-
 
         if (pro != null) {
 
@@ -1525,11 +1424,10 @@ public void verHistorialDe(int dni, String nombre) {
                             idEmpresa
                     );
 
-
             if (!actualizado) {
 
                 System.out.println(
-                        "❌ No se pudo actualizar stock. "
+                        "No se pudo actualizar stock. "
                                 + "Producto ID="
                                 + idProducto
                 );
@@ -1538,13 +1436,12 @@ public void verHistorialDe(int dni, String nombre) {
         } else {
 
             System.out.println(
-                    "❌ Producto ID="
+                    "Producto ID="
                             + idProducto
                             + " no pertenece a la empresa activa."
             );
         }
     }
-
 
     // ============================================================
     // LIMPIAR CÓDIGO
@@ -1559,21 +1456,23 @@ public void verHistorialDe(int dni, String nombre) {
                 .requestFocus();
     }
 
-
     // ============================================================
     // LIMPIAR CLIENTE
     // ============================================================
 
-   public void limpiarCliente() {
+    public void limpiarCliente() {
 
-    panel.getTxtRuc().setText("");
-    panel.getTxtNombreCliente().setText("");
+        panel.getTxtRuc()
+                .setText("");
 
-    idClienteActual = 0;
+        panel.getTxtNombreCliente()
+                .setText("");
 
-    panel.getTxtRuc().requestFocus();
-}
+        idClienteActual = 0;
 
+        panel.getTxtRuc()
+                .requestFocus();
+    }
 
     // ============================================================
     // LIMPIAR TODO
@@ -1584,25 +1483,19 @@ public void verHistorialDe(int dni, String nombre) {
         panel.getModeloProductos()
                 .setRowCount(0);
 
-
         panel.getTxtNombreCliente()
                 .setText("");
-
 
         panel.getTxtRuc()
                 .setText("");
 
-
         panel.getTxtCodigo()
                 .setText("");
-
 
         panel.getLblTotalValor()
                 .setText("-----");
 
-
         idClienteActual = 0;
-
 
         panel.getTxtRuc()
                 .requestFocus();

@@ -3,6 +3,9 @@ package Vista;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.Image;
+import java.awt.Cursor;
+import javax.swing.ImageIcon;
 
 /**
  * Panel de UI para el módulo "Crédito Cliente".
@@ -22,7 +25,7 @@ public class CreditoClientePanel extends JPanel {
     private JButton btnBuscarCliente;
     private JTextField txtNombreCliente;
     private JButton btnVerHistorial;
-
+    private JButton btnNuevoCliente;
     // ============================================================
     // PRODUCTOS
     // ============================================================
@@ -95,12 +98,55 @@ public class CreditoClientePanel extends JPanel {
         // BOTON ...
         // ========================================================
 
+       // ========================================================
+        // BOTÓN BUSCAR CLIENTE
+        // ========================================================
         btnBuscarCliente = new JButton("...");
-        btnBuscarCliente.setFont(new Font("Tahoma", Font.BOLD, 16));
-        btnBuscarCliente.setToolTipText("Buscar cliente por ID o nombre");
-        btnBuscarCliente.setBounds(295, 10, 45, 35);
-        add(btnBuscarCliente);
+        btnBuscarCliente.setFont(new Font("Tahoma", Font.BOLD, 18));
+        btnBuscarCliente.setForeground(new Color(55, 75, 100));
+        btnBuscarCliente.setBackground(new Color(230, 238, 248));
+        btnBuscarCliente.setFocusPainted(false);
+        btnBuscarCliente.setBorder(BorderFactory.createLineBorder(new Color(190, 205, 225)));
+        btnBuscarCliente.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnBuscarCliente.setToolTipText("Buscar cliente");
+        btnBuscarCliente.setBounds(295, 10, 40, 35);
+        btnBuscarCliente.setText("");
 
+        // 🔹 Corregido a /Img/ (con mayúscula si tu carpeta es así)
+        java.net.URL rutaBuscar = getClass().getResource("/Img/buscar_icon.jpg");
+
+        if (rutaBuscar != null) {
+            ImageIcon original = new ImageIcon(rutaBuscar);
+            Image imagen = original.getImage().getScaledInstance(20, 20, Image.SCALE_SMOOTH);
+            btnBuscarCliente.setIcon(new ImageIcon(imagen));
+        } else {
+            System.out.println("ERROR: No se encontró /Img/buscar_icon.jpg");
+        }
+        add(btnBuscarCliente);
+        
+        // ========================================================
+        // BOTÓN NUEVO CLIENTE
+        // ========================================================
+        btnNuevoCliente = new JButton("+");
+        btnNuevoCliente.setFont(new Font("Tahoma", Font.BOLD, 23));
+        btnNuevoCliente.setForeground(Color.WHITE);
+        btnNuevoCliente.setBackground(new Color(40, 160, 85));
+        btnNuevoCliente.setFocusPainted(false);
+        btnNuevoCliente.setBorder(BorderFactory.createLineBorder(new Color(30, 135, 70)));
+        btnNuevoCliente.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnNuevoCliente.setToolTipText("Registrar nuevo cliente");
+        btnNuevoCliente.setBounds(340, 10, 40, 35);
+        btnNuevoCliente.setText("");
+
+        // 🔹 Corregido con validación de nulidad y /Img/ con mayúscula
+        java.net.URL rutaNuevo = getClass().getResource("/Img/nuevo.png");
+
+        if (rutaNuevo != null) {
+            btnNuevoCliente.setIcon(new ImageIcon(rutaNuevo));
+        } else {
+            System.out.println("ERROR: No se encontró /Img/nuevo.png");
+        }
+        add(btnNuevoCliente);
 
         // ========================================================
         // CLIENTE
@@ -108,7 +154,7 @@ public class CreditoClientePanel extends JPanel {
 
         JLabel lblCliente = new JLabel("Cliente:");
         lblCliente.setFont(new Font("Tahoma", Font.BOLD, 16));
-        lblCliente.setBounds(350, 15, 70, 25);
+        lblCliente.setBounds(390, 15, 70, 25);
         add(lblCliente);
 
 
@@ -120,7 +166,7 @@ public class CreditoClientePanel extends JPanel {
         txtNombreCliente.setEditable(false);
         txtNombreCliente.setFont(new Font("Tahoma", Font.PLAIN, 20));
         txtNombreCliente.setForeground(new Color(51, 51, 255));
-        txtNombreCliente.setBounds(420, 10, 200, 35);
+        txtNombreCliente.setBounds(460, 10, 190, 35);
         add(txtNombreCliente);
 
 
@@ -129,7 +175,7 @@ public class CreditoClientePanel extends JPanel {
         // ========================================================
 
         btnVerHistorial = new JButton("Ver Historial");
-        btnVerHistorial.setBounds(640, 15, 120, 30);
+        btnVerHistorial.setBounds(665, 15, 120, 30);
         add(btnVerHistorial);
 
 
@@ -335,4 +381,8 @@ public class CreditoClientePanel extends JPanel {
     public JButton getBtnAceptar() {
         return btnAceptar;
     }
+    
+    public JButton getBtnNuevoCliente() {
+    return btnNuevoCliente;
+        }
 }

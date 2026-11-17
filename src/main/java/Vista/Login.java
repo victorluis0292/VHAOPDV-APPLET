@@ -457,22 +457,29 @@ public class Login extends JFrame {
 
     public static void main(String args[]) {
 
-        // 🔹 Configura el entorno: por defecto producción
-        Conexion.setEnvironment(System.getProperty("app.env", "prod"));
-
-        java.awt.EventQueue.invokeLater(() -> {
-
-            Login login = new Login();
-            login.setVisible(true);
-
-            if (!Conexion.hayConexion()) {
-                JOptionPane.showMessageDialog(
-                        login,
-                        "No se pudo establecer conexión con la base de datos.",
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
-            }
-        });
+    // 🔹 Inicializar FlatLaf para conservar tus colores y dar un diseño moderno
+    try {
+        UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatLightLaf());
+    } catch (Exception ex) {
+        ex.printStackTrace();
     }
+
+    // 🔹 Configura el entorno: por defecto producción
+    Conexion.setEnvironment(System.getProperty("app.env", "prod"));
+
+    java.awt.EventQueue.invokeLater(() -> {
+
+        Login login = new Login();
+        login.setVisible(true);
+
+        if (!Conexion.hayConexion()) {
+            JOptionPane.showMessageDialog(
+                    login,
+                    "No se pudo establecer conexión con la base de datos.",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+    });
+}
 }
