@@ -41,10 +41,10 @@ import javax.swing.SwingWorker;
  */
 public class BannersCreditoCliente extends JPanel {
 
-    // Evita consultas repetidas cuando varios eventos llegan juntos
+     // Evita consultas repetidas cuando varios eventos llegan juntos
     private static final long MIN_MS_ENTRE_CARGAS = 2000;
 
-            private static final String SQL =
+    private static final String SQL =
             "SELECT d.dni, "
           + "COALESCE(MAX(c.nombre), "
           + "  SUBSTRING_INDEX(GROUP_CONCAT(d.cliente ORDER BY d.fecha DESC SEPARATOR '||'), '||', 1)) AS cliente, "
@@ -55,7 +55,8 @@ public class BannersCreditoCliente extends JPanel {
           + "           FROM abonos_credito WHERE id_empresa = ? "
           + "           GROUP BY id_detalle) a ON a.id_detalle = d.id "
           + "LEFT JOIN (SELECT dni, id_empresa, MAX(nombre) AS nombre "
-          + "           FROM clientes GROUP BY dni, id_empresa) c "
+          + "           FROM clientes WHERE activo = 1 "
+          + "           GROUP BY dni, id_empresa) c "
           + "       ON c.dni = d.dni AND c.id_empresa = d.id_empresa "
           + "WHERE d.id_empresa = ? AND d.pagado = 0 "
           + "GROUP BY d.dni "

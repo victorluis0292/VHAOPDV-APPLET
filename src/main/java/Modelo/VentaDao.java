@@ -134,7 +134,7 @@ ps.setObject(7, fechaHoraLocal);
             ps.setString(6, detalle.getCliente());
             ps.setString(7, detalle.getNombre());
             ps.setInt(8, detalle.getDni());
-            ps.setTimestamp(9, new Timestamp(obtenerFechaHoraLocal()));
+            ps.setObject(9, LocalDateTime.now(ZoneId.of("America/Monterrey")));
             ps.setInt(10, Sistema.getIdEmpresaActiva());
 
             filas = ps.executeUpdate();
@@ -326,8 +326,9 @@ if (fechaHora != null) {
         return venta;
     }
 
-    public int obtenerIdClientePorDniEmpresa(int dni, int idEmpresa) {
-        String sql = "SELECT id FROM clientes WHERE dni = ? AND id_empresa = ? LIMIT 1";
+        public int obtenerIdClientePorDniEmpresa(int dni, int idEmpresa) {
+        String sql = "SELECT id FROM clientes WHERE dni = ? AND id_empresa = ? "
+                   + "AND activo = 1 ORDER BY id DESC LIMIT 1";
         try (Connection con = cn.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
 

@@ -78,6 +78,20 @@ private void cargarDatos() {
         "  INNER JOIN productos pr ON d.id_pro = pr.id " +
         "  INNER JOIN proveedor p ON pr.proveedor = p.id " +
         "  WHERE v.fecha = ? AND v.id_empresa = ? AND v.cancelada = 0 " +
+
+        "  UNION ALL " +
+
+        
+        // 3) Abonos (a producto y por categoría), atribuidos al proveedor del producto
+        "  SELECT COALESCE(p.nombre, 'Abonos sin producto') AS Proveedor, a.monto AS monto " +
+        "  FROM abonos_credito a " +
+        "  LEFT JOIN ventas v ON v.id = a.id_venta " +
+        "  LEFT JOIN detalle_creditocliente dc ON dc.id = a.id_detalle " +
+        "  LEFT JOIN productos pr ON pr.id = COALESCE(a.id_pro, dc.id_pro) " +
+        "  LEFT JOIN proveedor p ON pr.proveedor = p.id " +
+        "  WHERE a.tipo_pago IN ('ABONO', 'ABONO_CAT') " +
+        "    AND DATE(a.fecha) = ? AND a.id_empresa = ? " +
+        "    AND COALESCE(v.cancelada, 0) = 0 " +
         ") t GROUP BY t.Proveedor";
 
     try (Connection con = Conexion.getConnection();
@@ -85,11 +99,13 @@ private void cargarDatos() {
 
         System.out.println("Fecha usada para la consulta: " + fechaSeleccionada);
 
-        // 4 parámetros: cada mitad del UNION ALL lleva fecha + empresa
+        // 6 parámetros: cada bloque del UNION ALL lleva fecha + empresa
         ps.setString(1, fechaSeleccionada);
         ps.setInt(2, idEmpresa);
         ps.setString(3, fechaSeleccionada);
         ps.setInt(4, idEmpresa);
+        ps.setString(5, fechaSeleccionada);
+        ps.setInt(6, idEmpresa);
 
         try (ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {

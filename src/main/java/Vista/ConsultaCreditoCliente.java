@@ -316,7 +316,8 @@ for (int i = 0; i < anchos.length && i < tableProductos.getColumnCount(); i++) {
     "SELECT d.id, d.id_pro, d.nombre, d.cantidad, d.precio, d.total, d.fecha, d.dni, '' AS nota, " +
     "IFNULL((SELECT SUM(a.monto) FROM abonos_credito a " +
     "        WHERE a.id_detalle = d.id AND a.aplicado = 0), 0) AS abonado, 0 AS es_abono " +
-    "FROM detalle_creditocliente d WHERE d.dni = ? AND d.id_empresa = ? " +
+    "FROM detalle_creditocliente d " +
+    "WHERE d.dni = ? AND d.id_empresa = ? AND COALESCE(d.pagado, 0) = 0 " +
     "UNION ALL " +
     "SELECT ab.id, 0, " +
     "       IF(dp.nombre IS NULL, 'ABONO REALIZADO', CONCAT('ABONO REALIZADO - ', dp.nombre)), " +
@@ -422,8 +423,18 @@ for (int i = 0; i < anchos.length && i < tableProductos.getColumnCount(); i++) {
             creditoPendiente = 0;
         }
 
-        if (creditoPendiente <= 0) {
-            JOptionPane.showMessageDialog(this, "No hay saldo pendiente para cobrar.");
+                if (creditoPendiente <= 0) {
+            int r = JOptionPane.showConfirmDialog(this,
+                    "El crédito ya está liquidado con abonos.\n¿Cerrarlo y quitarlo de la lista?",
+                    "Crédito liquidado", JOptionPane.YES_NO_OPTION);
+            if (r == JOptionPane.YES_OPTION && dni != null && !dni.trim().isEmpty()) {
+                if (new Modelo.AbonoDao().cerrarCreditoLiquidado(dni.trim())) {
+                    cargarDatos();
+                } else {
+                    JOptionPane.showMessageDialog(this, "No se pudo cerrar el crédito.",
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
             return;
         }
 

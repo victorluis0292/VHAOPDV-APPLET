@@ -1,6 +1,8 @@
 package Modelo;
 
 import java.sql.*;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 public class AbonoProductoDao {
@@ -15,15 +17,16 @@ public class AbonoProductoDao {
     public boolean registrar(int idVenta, double monto, String nota, int dni, int idEmpresa, int idDetalle) {
         String sql = "INSERT INTO abonos_credito "
                    + "(id_venta, fecha, monto, tipo_pago, nota, dni, id_empresa, aplicado, id_detalle) "
-                   + "VALUES (?, NOW(), ?, 'ABONO', ?, ?, ?, 0, ?)";
+                   + "VALUES (?, ?, ?, 'ABONO', ?, ?, ?, 0, ?)";
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, idVenta);
-            ps.setDouble(2, monto);
-            ps.setString(3, nota);
-            ps.setInt(4, dni);
-            ps.setInt(5, idEmpresa);
-            ps.setInt(6, idDetalle);
+            ps.setObject(2, LocalDateTime.now(ZoneId.of("America/Monterrey")));
+            ps.setDouble(3, monto);
+            ps.setString(4, nota);
+            ps.setInt(5, dni);
+            ps.setInt(6, idEmpresa);
+            ps.setInt(7, idDetalle);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -36,17 +39,20 @@ public class AbonoProductoDao {
                                    int dni, int idEmpresa) {
         String sql = "INSERT INTO abonos_credito "
                    + "(id_venta, fecha, monto, tipo_pago, nota, dni, id_empresa, aplicado, id_detalle) "
-                   + "VALUES (?, NOW(), ?, 'ABONO_CAT', ?, ?, ?, 0, ?)";
+                   + "VALUES (?, ?, ?, 'ABONO_CAT', ?, ?, ?, 0, ?)";
         try (Connection con = Conexion.getConnection()) {
             con.setAutoCommit(false);
+            // Una sola hora para todas las filas del mismo abono
+            LocalDateTime ahora = LocalDateTime.now(ZoneId.of("America/Monterrey"));
             try (PreparedStatement ps = con.prepareStatement(sql)) {
                 for (double[] parte : partes) {          // parte = {idDetalle, monto}
                     ps.setInt(1, idVenta);
-                    ps.setDouble(2, parte[1]);
-                    ps.setString(3, nota);
-                    ps.setInt(4, dni);
-                    ps.setInt(5, idEmpresa);
-                    ps.setInt(6, (int) parte[0]);
+                    ps.setObject(2, ahora);
+                    ps.setDouble(3, parte[1]);
+                    ps.setString(4, nota);
+                    ps.setInt(5, dni);
+                    ps.setInt(6, idEmpresa);
+                    ps.setInt(7, (int) parte[0]);
                     ps.addBatch();
                 }
                 ps.executeBatch();

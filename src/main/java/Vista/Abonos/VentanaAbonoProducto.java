@@ -148,6 +148,15 @@ public class VentanaAbonoProducto extends JDialog {
         getRootPane().registerKeyboardAction(e -> dispose(),
                 KeyStroke.getKeyStroke("ESCAPE"),
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
+         // Al abrir la ventana, dejar el cursor en el campo Abonar
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowOpened(java.awt.event.WindowEvent e) {
+                if (txtMonto.isEnabled()) {
+                    txtMonto.requestFocusInWindow();
+                }
+            }
+        });
 
         pack();
         setMinimumSize(new Dimension(620, 480));   // por si el pack() sale chico

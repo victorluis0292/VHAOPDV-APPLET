@@ -2,6 +2,8 @@ package Modelo;
 
 import Vista.Sistema;
 import java.sql.*;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -18,10 +20,8 @@ public class AbonoDao {
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
 
-            Timestamp ahora = new Timestamp(System.currentTimeMillis());
-
             ps.setInt(1, idVenta);
-            ps.setTimestamp(2, ahora);
+            ps.setObject(2, LocalDateTime.now(ZoneId.of("America/Monterrey")));
             ps.setDouble(3, monto);
             ps.setString(4, tipoPago);
             ps.setString(5, nota);
@@ -38,44 +38,39 @@ public class AbonoDao {
     }
 
     /**
-     * Cambia el estado de los abonos de una venta a '1' (pagado) filtrando por empresa
+     * Marca los abonos como aplicados y los vincula
+     * con el folio de la liquidación.
+     *
+     * Conserva el id_venta original del abono.
      */
-   
-/**
- * Marca los abonos como aplicados y los vincula
- * con el folio de la liquidación.
- *
- * Conserva el id_venta original del abono.
- */
-public boolean actualizarAbonosAplicados(int dni, int idVenta) {
+    public boolean actualizarAbonosAplicados(int dni, int idVenta) {
 
-    String sql = "UPDATE abonos_credito " +
-                 "SET aplicado = 1, id_venta_abono = ? " +
-                 "WHERE dni = ? " +
-                 "AND aplicado = 0 " +
-                 "AND id_empresa = ? " +
-                 "AND id_venta_abono IS NULL";
+        String sql = "UPDATE abonos_credito " +
+                     "SET aplicado = 1, id_venta_abono = ? " +
+                     "WHERE dni = ? " +
+                     "AND aplicado = 0 " +
+                     "AND id_empresa = ? " +
+                     "AND id_venta_abono IS NULL";
 
-    try (Connection con = Conexion.getConnection();
-         PreparedStatement ps = con.prepareStatement(sql)) {
+        try (Connection con = Conexion.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
 
-        ps.setInt(1, idVenta);
-        ps.setInt(2, dni);
-        ps.setInt(3, Sistema.getIdEmpresaActiva());
+            ps.setInt(1, idVenta);
+            ps.setInt(2, dni);
+            ps.setInt(3, Sistema.getIdEmpresaActiva());
 
-        int actualizados = ps.executeUpdate();
+            int actualizados = ps.executeUpdate();
 
-        System.out.println("Abonos vinculados a liquidación: " + actualizados);
-        System.out.println("Folio liquidación: " + idVenta);
+            System.out.println("Abonos vinculados a liquidación: " + actualizados);
+            System.out.println("Folio liquidación: " + idVenta);
 
-        return actualizados >= 0;
+            return actualizados >= 0;
 
-    } catch (SQLException e) {
-        System.err.println("Error al actualizar abonos aplicados: " + e.getMessage());
-        return false;
+        } catch (SQLException e) {
+            System.err.println("Error al actualizar abonos aplicados: " + e.getMessage());
+            return false;
+        }
     }
-}
-
 
     /**
      * Obtiene los abonos de una venta filtrando por empresa
@@ -109,5 +104,50 @@ public boolean actualizarAbonosAplicados(int dni, int idVenta) {
         }
         System.out.println("Total abonos encontrados para venta " + idVenta + ": " + abonos.size());
         return abonos;
+    }
+
+    /**
+     * Cierra los productos de un cliente que ya quedaron liquidados con abonos
+     * (total - abonos <= 0): los marca pagado y marca sus abonos como aplicados.
+     * No borra nada, para que el Corte Ventas conserve el proveedor de cada abono.
+     */
+    public boolean cerrarCreditoLiquidado(String dni) {
+        int idEmpresa = Sistema.getIdEmpresaActiva();
+
+        String sqlDetalle =
+            "UPDATE detalle_creditocliente d SET d.pagado = 1 " +
+            "WHERE d.dni = ? AND d.id_empresa = ? AND COALESCE(d.pagado, 0) = 0 " +
+            "AND ROUND(d.total - IFNULL((SELECT SUM(a.monto) FROM abonos_credito a " +
+            "    WHERE a.id_detalle = d.id AND a.aplicado = 0), 0), 2) <= 0";
+
+        String sqlAbonos =
+            "UPDATE abonos_credito a " +
+            "JOIN detalle_creditocliente d ON d.id = a.id_detalle " +
+            "SET a.aplicado = 1 " +
+            "WHERE d.dni = ? AND d.id_empresa = ? AND d.pagado = 1 AND a.aplicado = 0";
+
+        try (Connection con = Conexion.getConnection()) {
+            con.setAutoCommit(false);
+            try (PreparedStatement ps1 = con.prepareStatement(sqlDetalle);
+                 PreparedStatement ps2 = con.prepareStatement(sqlAbonos)) {
+
+                ps1.setString(1, dni);
+                ps1.setInt(2, idEmpresa);
+                ps1.executeUpdate();
+
+                ps2.setString(1, dni);
+                ps2.setInt(2, idEmpresa);
+                ps2.executeUpdate();
+
+                con.commit();
+                return true;
+            } catch (SQLException e) {
+                con.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            System.err.println("Error al cerrar crédito liquidado: " + e.getMessage());
+            return false;
+        }
     }
 }

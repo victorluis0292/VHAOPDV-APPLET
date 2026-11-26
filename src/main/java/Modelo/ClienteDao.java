@@ -21,7 +21,13 @@ public class ClienteDao {
     // REGISTRAR CLIENTE
     // ---------------------------------------------------------
     public boolean RegistrarCliente(Cliente cl) {
-
+        
+        if (existeDniActivo(cl.getDni(), cl.getIdEmpresa(), 0)) {
+            JOptionPane.showMessageDialog(null,
+                    "Ya existe un cliente activo con el ID " + cl.getDni() + ".");
+            return false;
+        }
+        
         String sql = "INSERT INTO clientes "
                    + "(dni, nombre, telefono, direccion, id_empresa, activo) "
                    + "VALUES (?, ?, ?, ?, ?, 1)";
@@ -88,7 +94,7 @@ public class ClienteDao {
     // null = se puede desactivar.
     // Si no, devuelve el motivo.
     // ---------------------------------------------------------
-    public String motivoNoEliminar(int idCliente) {
+     public String motivoNoEliminar(int idCliente) {
 
         String sqlCliente = "SELECT id FROM clientes "
                           + "WHERE id = ?";
@@ -99,7 +105,10 @@ public class ClienteDao {
                           + "ON c.dni = d.dni "
                           + "AND c.id_empresa = d.id_empresa "
                           + "WHERE c.id = ? "
-                          + "AND COALESCE(d.pagado, 0) = 0";
+                          + "AND COALESCE(d.pagado, 0) = 0 "
+                          + "AND ROUND(d.total - IFNULL("
+                          + "(SELECT SUM(a.monto) FROM abonos_credito a "
+                          + "WHERE a.id_detalle = d.id AND a.aplicado = 0), 0), 2) > 0";
 
         try (Connection c = cn.getConnection()) {
 
@@ -150,7 +159,6 @@ public class ClienteDao {
 
         return null;
     }
-
     // ---------------------------------------------------------
     // DESACTIVAR CLIENTE (ELIMINACIÓN LÓGICA)
     // ---------------------------------------------------------
@@ -193,7 +201,30 @@ public class ClienteDao {
     // ---------------------------------------------------------
     // REACTIVAR CLIENTE
     // ---------------------------------------------------------
-    public boolean ReactivarCliente(int id, int idEmpresa) {
+        public boolean ReactivarCliente(int id, int idEmpresa) {
+
+        // Buscar el DNI del cliente a reactivar
+        String dni = null;
+        try (Connection c = cn.getConnection();
+             PreparedStatement p = c.prepareStatement(
+                     "SELECT dni FROM clientes WHERE id = ? AND id_empresa = ?")) {
+            p.setInt(1, id);
+            p.setInt(2, idEmpresa);
+            try (ResultSet r = p.executeQuery()) {
+                if (r.next()) dni = r.getString("dni");
+            }
+        } catch (SQLException e) {
+            System.out.println("[CLIENTE] Error al reactivar: " + e.toString());
+            return false;
+        }
+
+        if (dni == null) return false;
+
+        if (existeDniActivo(dni, idEmpresa, id)) {
+            JOptionPane.showMessageDialog(null,
+                    "No se puede reactivar: ya hay un cliente activo con el ID " + dni + ".");
+            return false;
+        }
 
         String sql = "UPDATE clientes "
                    + "SET activo = 1 "
@@ -208,15 +239,10 @@ public class ClienteDao {
             return p.executeUpdate() > 0;
 
         } catch (SQLException e) {
-
-            System.out.println(
-                    "[CLIENTE] Error al reactivar: " + e.toString()
-            );
-
+            System.out.println("[CLIENTE] Error al reactivar: " + e.toString());
             return false;
         }
     }
-
     // ---------------------------------------------------------
     // LISTAR CLIENTES INACTIVOS
     // ---------------------------------------------------------
@@ -264,6 +290,12 @@ public class ClienteDao {
     // MODIFICAR CLIENTE
     // ---------------------------------------------------------
     public boolean ModificarCliente(Cliente cl) {
+        
+                if (existeDniActivo(cl.getDni(), cl.getIdEmpresa(), cl.getId())) {
+            JOptionPane.showMessageDialog(null,
+                    "Ya existe otro cliente activo con el ID " + cl.getDni() + ".");
+            return false;
+        }
 
         String sql = "UPDATE clientes "
                    + "SET dni = ?, nombre = ?, telefono = ?, direccion = ? "
@@ -389,7 +421,8 @@ public class ClienteDao {
     
 public Cliente BuscarClientePorDni(String dni, int idEmpresa) {
 
-    String sql = "SELECT * FROM clientes WHERE dni = ? AND id_empresa = ?";
+    String sql = "SELECT * FROM clientes WHERE dni = ? AND id_empresa = ? "
+               + "AND activo = 1 ORDER BY id DESC LIMIT 1";
 
     try (Connection c = cn.getConnection();
          PreparedStatement p = c.prepareStatement(sql)) {
@@ -420,6 +453,32 @@ public Cliente BuscarClientePorDni(String dni, int idEmpresa) {
 
     return null;
 }
+    // ---------------------------------------------------------
+    // ¿YA EXISTE UN CLIENTE ACTIVO CON ESE DNI EN ESTA EMPRESA?
+    // excluirId: el id del propio cliente al modificar (0 al registrar)
+    // ---------------------------------------------------------
+    public boolean existeDniActivo(String dni, int idEmpresa, int excluirId) {
+
+        String sql = "SELECT 1 FROM clientes "
+                   + "WHERE dni = ? AND id_empresa = ? "
+                   + "AND activo = 1 AND id <> ? LIMIT 1";
+
+        try (Connection c = cn.getConnection();
+             PreparedStatement p = c.prepareStatement(sql)) {
+
+            p.setString(1, dni);
+            p.setInt(2, idEmpresa);
+            p.setInt(3, excluirId);
+
+            try (ResultSet r = p.executeQuery()) {
+                return r.next();
+            }
+
+        } catch (SQLException e) {
+            System.out.println("[CLIENTE] Error al validar DNI: " + e.toString());
+            return true;   // si no se puede verificar, mejor no duplicar
+        }
+    }
 
 
 }
